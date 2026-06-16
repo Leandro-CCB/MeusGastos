@@ -78,6 +78,64 @@
   .total-card .value { font-size: 2rem; font-weight: 800; margin: 4px 0; }
   .total-card .sub { font-size: 0.78rem; opacity: .75; }
 
+  /* TOP SEGMENTO CARD */
+  .top-seg-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .top-seg-icon { font-size: 2rem; flex-shrink: 0; }
+  .top-seg-info { flex: 1; }
+  .top-seg-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); }
+  .top-seg-name { font-size: 1rem; font-weight: 700; margin: 2px 0; }
+  .top-seg-val { font-size: 0.82rem; color: var(--text2); }
+  .top-seg-badge {
+    background: rgba(255,107,107,.15);
+    color: var(--warn);
+    font-size: 0.7rem; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  /* FILTRO CATEGORIA DROPDOWN */
+  .filter-dropdown-wrap { position: relative; margin-bottom: 12px; }
+  .filter-dropdown-btn {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text);
+    font-size: 0.88rem; font-weight: 600; cursor: pointer;
+    transition: border-color .15s;
+  }
+  .filter-dropdown-btn:hover, .filter-dropdown-btn.open { border-color: var(--accent); }
+  .filter-dropdown-btn .fdb-left { display: flex; align-items: center; gap: 8px; }
+  .filter-dropdown-btn .fdb-arrow { color: var(--text2); font-size: 0.75rem; transition: transform .2s; }
+  .filter-dropdown-btn.open .fdb-arrow { transform: rotate(180deg); }
+  .filter-dropdown-list {
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; z-index: 50;
+    overflow: hidden; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  }
+  .filter-dropdown-list.open { display: block; }
+  .filter-option {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 14px; cursor: pointer;
+    font-size: 0.85rem; transition: background .12s;
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-option:last-child { border-bottom: none; }
+  .filter-option:hover { background: var(--surface2); }
+  .filter-option.active { background: rgba(108,99,255,.12); color: var(--accent); }
+  .filter-option .fo-left { display: flex; align-items: center; gap: 8px; }
+  .filter-option .fo-val { font-size: 0.78rem; color: var(--text2); font-weight: 600; }
+
   .section-title {
     font-size: 0.75rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 1px;
@@ -94,19 +152,13 @@
   }
   .budget-card .bc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .budget-card .bc-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-  .bc-food .bc-icon { background: rgba(247,183,49,.15); }
-  .bc-fuel .bc-icon { background: rgba(69,170,242,.15); }
   .budget-card .bc-name { font-size: 0.78rem; font-weight: 600; color: var(--text2); }
   .budget-card .bc-vals { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
   .budget-card .bc-spent { font-size: 1rem; font-weight: 700; }
-  .bc-food .bc-spent { color: var(--food); }
-  .bc-fuel .bc-spent { color: var(--fuel); }
   .budget-card .bc-total { font-size: 0.72rem; color: var(--text2); }
   .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .progress-fill { height: 100%; border-radius: 3px; transition: width .6s cubic-bezier(.4,0,.2,1); }
-  .bc-food .progress-fill { background: var(--food); }
-  .bc-fuel .progress-fill { background: var(--fuel); }
-  .progress-fill.over { background: var(--warn); }
+  .progress-fill.over { background: var(--warn) !important; }
   .budget-card .bc-pct { font-size: 0.7rem; color: var(--text2); margin-top: 5px; }
 
   /* RECENT */
@@ -127,8 +179,16 @@
   .tx-desc { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tx-meta { font-size: 0.72rem; color: var(--text2); margin-top: 2px; }
   .tx-amount { font-size: 0.95rem; font-weight: 700; color: var(--warn); white-space: nowrap; }
-  .tx-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 0.9rem; padding: 4px; opacity: .6; }
+  .tx-actions { display: flex; gap: 4px; }
+  .tx-del, .tx-edit {
+    background: none; border: none; cursor: pointer;
+    font-size: 0.9rem; padding: 4px; opacity: .6;
+    border-radius: 6px; transition: all .15s;
+  }
+  .tx-del { color: var(--text2); }
   .tx-del:hover { opacity: 1; color: var(--warn); }
+  .tx-edit { color: var(--text2); }
+  .tx-edit:hover { opacity: 1; color: var(--accent); background: rgba(108,99,255,.12); }
 
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text2); font-size: 0.88rem; }
   .empty-state .ei { font-size: 2.5rem; margin-bottom: 10px; }
@@ -136,13 +196,14 @@
   /* CATEGORIAS */
   .cat-list { display: flex; flex-direction: column; gap: 8px; }
   .cat-row { display: flex; align-items: center; gap: 10px; }
-  .cat-label { width: 80px; font-size: 0.78rem; color: var(--text2); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cat-label { width: 90px; font-size: 0.78rem; color: var(--text2); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cat-bar-wrap { flex: 1; height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
   .cat-bar { height: 100%; border-radius: 5px; }
   .cat-val { width: 60px; text-align: right; font-size: 0.78rem; font-weight: 600; }
 
   /* LANÇAR */
   .form-card { background: var(--surface); border-radius: var(--radius); padding: 18px; border: 1px solid var(--border); margin-bottom: 16px; }
+  .form-card-title { font-size: 0.85rem; font-weight: 700; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
   .form-row { margin-bottom: 14px; }
   .form-row label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
   .form-row input, .form-row select {
@@ -176,6 +237,13 @@
   }
   .btn-primary:active { opacity: .85; }
   .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-secondary {
+    width: 100%; padding: 13px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text2);
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    margin-top: 8px;
+  }
 
   /* CONFIG */
   .config-card { background: var(--surface); border-radius: var(--radius); padding: 18px; border: 1px solid var(--border); margin-bottom: 12px; }
@@ -196,6 +264,67 @@
   .supabase-status-box { background: var(--surface2); border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
   .supabase-status-box p { font-size: 0.78rem; color: var(--text2); line-height: 1.5; }
   .supabase-status-box p strong { color: var(--text); }
+
+  /* PLANEJAMENTOS DINÂMICOS */
+  .plan-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .plan-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .plan-item-emoji { font-size: 1.2rem; flex-shrink: 0; }
+  .plan-item-name { flex: 1; font-size: 0.85rem; font-weight: 600; }
+  .plan-item-val { font-size: 0.9rem; font-weight: 700; color: var(--accent2); }
+  .plan-item-del {
+    background: none; border: none; color: var(--text2); cursor: pointer;
+    font-size: 0.85rem; padding: 4px; opacity: .6; border-radius: 6px;
+    transition: all .15s;
+  }
+  .plan-item-del:hover { opacity: 1; color: var(--warn); }
+
+  .add-plan-form {
+    background: var(--surface2); border: 1px dashed var(--border);
+    border-radius: 12px; padding: 14px; margin-top: 4px;
+  }
+  .add-plan-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .add-plan-row input, .add-plan-row select {
+    flex: 1; padding: 10px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 0.88rem;
+    outline: none; font-family: var(--font);
+  }
+  .add-plan-row input:focus, .add-plan-row select:focus { border-color: var(--accent); }
+  .add-plan-row .emoji-pick { width: 54px; text-align: center; font-size: 1.2rem; padding: 10px 6px; }
+  .btn-add-plan {
+    width: 100%; padding: 11px; background: var(--accent);
+    border: none; border-radius: 10px; color: #fff;
+    font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  }
+  .btn-toggle-add {
+    width: 100%; padding: 11px; background: var(--surface2);
+    border: 1.5px dashed var(--border); border-radius: 10px; color: var(--text2);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-top: 4px;
+  }
+  .btn-toggle-add:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MODAL EDITAR */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,17,23,.9);
+    z-index: 500; display: none; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: var(--radius) var(--radius) 0 0;
+    padding: 20px; width: 100%; max-width: 430px;
+    border-top: 1px solid var(--border);
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:none} }
+  .modal-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .modal-close {
+    margin-left: auto; background: none; border: none;
+    color: var(--text2); font-size: 1.3rem; cursor: pointer; padding: 0 4px;
+  }
 
   /* NAV BOTTOM */
   .nav-bottom {
@@ -274,6 +403,34 @@
   <p id="loading-msg">Carregando...</p>
 </div>
 
+<!-- MODAL EDITAR LANÇAMENTO -->
+<div class="modal-overlay" id="edit-modal" onclick="closeEditModal(event)">
+  <div class="modal">
+    <div class="modal-title">
+      ✏️ Editar lançamento
+      <button class="modal-close" onclick="closeEditModalForce()">✕</button>
+    </div>
+    <div class="form-row">
+      <label>Valor (R$)</label>
+      <input type="number" id="edit-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <label>Descrição</label>
+      <input type="text" id="edit-desc" placeholder="Ex: Almoço no trabalho">
+    </div>
+    <div class="form-row">
+      <label>Data</label>
+      <input type="date" id="edit-data">
+    </div>
+    <div class="form-row">
+      <label>Categoria</label>
+      <div class="cat-grid" id="edit-cat-grid"></div>
+    </div>
+    <button class="btn-primary" onclick="salvarEdicao()">Salvar alterações</button>
+    <button class="btn-secondary" onclick="closeEditModalForce()">Cancelar</button>
+  </div>
+</div>
+
 <!-- ==================== LANÇAR ==================== -->
 <div class="page active" id="page-lancar">
   <div class="form-card">
@@ -305,33 +462,11 @@
     <div class="sub" id="dash-sub">0 lançamentos este mês</div>
   </div>
 
+  <!-- Top segmento -->
+  <div id="dash-top-seg"></div>
+
   <div class="section-title">Orçamentos mensais</div>
-  <div class="budget-cards">
-    <div class="budget-card bc-food">
-      <div class="bc-header">
-        <div class="bc-icon">🍽️</div>
-        <div class="bc-name">Alimentação</div>
-      </div>
-      <div class="bc-vals">
-        <span class="bc-spent" id="food-spent">R$ 0</span>
-        <span class="bc-total" id="food-budget">/ R$ 0</span>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" id="food-bar" style="width:0%"></div></div>
-      <div class="bc-pct" id="food-pct">0% utilizado</div>
-    </div>
-    <div class="budget-card bc-fuel">
-      <div class="bc-header">
-        <div class="bc-icon">⛽</div>
-        <div class="bc-name">Combustível</div>
-      </div>
-      <div class="bc-vals">
-        <span class="bc-spent" id="fuel-spent">R$ 0</span>
-        <span class="bc-total" id="fuel-budget">/ R$ 0</span>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" id="fuel-bar" style="width:0%"></div></div>
-      <div class="bc-pct" id="fuel-pct">0% utilizado</div>
-    </div>
-  </div>
+  <div class="budget-cards" id="dash-budgets"></div>
 
   <div class="section-title">Por categoria</div>
   <div class="cat-list" id="dash-cats"></div>
@@ -342,24 +477,40 @@
 
 <!-- ==================== LANÇAMENTOS ==================== -->
 <div class="page" id="page-lancamentos">
-  <div class="section-title">Todos os lançamentos</div>
+  <div class="filter-dropdown-wrap" style="margin-bottom:12px;">
+    <button class="filter-dropdown-btn" id="lan-filter-btn" onclick="toggleLanFilter()">
+      <span class="fdb-left" id="lan-filter-label">🏷️ Todas as categorias</span>
+      <span class="fdb-arrow">▼</span>
+    </button>
+    <div class="filter-dropdown-list" id="lan-filter-list"></div>
+  </div>
+  <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;" id="lan-count"></div>
   <div id="all-tx-list"></div>
 </div>
 
 <!-- ==================== CONFIG ==================== -->
 <div class="page" id="page-config">
   <div class="config-card">
-    <h3>💰 Orçamentos mensais</h3>
-    <div class="config-row">
-      <label>🍽️ Alimentação</label>
-      <input type="number" id="cfg-food" value="0" step="50" min="0">
-    </div>
-    <div class="config-row">
-      <label>⛽ Combustível</label>
-      <input type="number" id="cfg-fuel" value="0" step="50" min="0">
+    <h3>💰 Planejamentos mensais</h3>
+    <div class="plan-list" id="plan-list"></div>
+    <button class="btn-toggle-add" onclick="toggleAddPlan()">➕ Adicionar planejamento</button>
+    <div class="add-plan-form" id="add-plan-form" style="display:none; margin-top:12px;">
+      <div class="add-plan-row">
+        <input type="text" class="emoji-pick" id="new-plan-emoji" placeholder="🏷️" maxlength="2">
+        <input type="text" id="new-plan-nome" placeholder="Nome do planejamento">
+      </div>
+      <div class="add-plan-row">
+        <select id="new-plan-cat">
+          <option value="">-- Categoria vinculada --</option>
+        </select>
+      </div>
+      <div class="add-plan-row">
+        <input type="number" id="new-plan-valor" placeholder="Limite mensal (R$)" min="0" step="50">
+      </div>
+      <button class="btn-add-plan" onclick="adicionarPlan()">Adicionar</button>
     </div>
     <br>
-    <button class="btn-save" onclick="salvarConfig()">Salvar orçamentos</button>
+    <button class="btn-save" onclick="salvarPlans()">Salvar planejamentos</button>
   </div>
 
   <div class="config-card">
@@ -378,7 +529,7 @@
   </div>
 </div>
 
-<!-- NAV BOTTOM: Lançar | Dashboard | Lançamentos | Config -->
+<!-- NAV BOTTOM -->
 <div class="nav-bottom">
   <div class="nav-item active" onclick="goPage('lancar',this)" id="nav-lancar">
     <span class="nav-icon">➕</span>Lançar
@@ -463,11 +614,14 @@ const CAT_COLORS = {
   casa:'#fd79a8', roupas:'#fdcb6e', educacao:'#6c5ce7', outros:'#b2bec3'
 };
 
-// Cache local (evitar recargas desnecessárias)
 let _lancamentos = [];
-let _config = { food: 0, fuel: 0 };
+// _config.plans = [{ id, emoji, nome, cat, limite }]
+let _config = { plans: [], _dbId: null };
 let currentMonth;
 let selectedCat = '';
+let editingId = null;
+let editingCat = '';
+let lanFilterCat = ''; // filtro aba lançamentos
 
 function fmt(v) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -481,7 +635,6 @@ function fmtShort(v) {
 async function loadFromSupabase() {
   showLoading('Carregando dados...');
   try {
-    // Lançamentos
     const lans = await sbFetch(TB_LAN + '?order=data.desc', { method: 'GET', prefer: '' });
     _lancamentos = lans.map(r => ({
       id: r.id,
@@ -490,10 +643,21 @@ async function loadFromSupabase() {
       cat: r.categoria,
       data: r.data
     }));
-    // Config
     const cfgs = await sbFetch(TB_CFG + '?limit=1', { method: 'GET', prefer: '' });
     if(cfgs.length > 0) {
-      _config = { food: parseFloat(cfgs[0].orcamento_alimentacao)||0, fuel: parseFloat(cfgs[0].orcamento_combustivel)||0, _dbId: cfgs[0].id };
+      const raw = cfgs[0];
+      _config._dbId = raw.id;
+      // Suporte legado (food/fuel) + novo campo plans
+      let plans = [];
+      if(raw.plans) {
+        try { plans = JSON.parse(raw.plans); } catch(e) {}
+      }
+      // Migrar legado
+      if(plans.length === 0) {
+        if(raw.orcamento_alimentacao > 0) plans.push({ id:'p1', emoji:'🍽️', nome:'Alimentação', cat:'alimentacao', limite: parseFloat(raw.orcamento_alimentacao)||0 });
+        if(raw.orcamento_combustivel > 0) plans.push({ id:'p2', emoji:'⛽', nome:'Combustível', cat:'combustivel', limite: parseFloat(raw.orcamento_combustivel)||0 });
+      }
+      _config.plans = plans;
     }
     setSyncStatus('ok', 'online');
   } catch(e) {
@@ -504,40 +668,30 @@ async function loadFromSupabase() {
 }
 
 async function insertLancamento(lan) {
-  const row = {
-    valor: lan.valor,
-    descricao: lan.desc,
-    categoria: lan.cat,
-    data: lan.data
-  };
-  const result = await sbFetch(TB_LAN, {
-    method: 'POST',
-    body: JSON.stringify(row),
-    prefer: 'return=representation'
-  });
+  const row = { valor: lan.valor, descricao: lan.desc, categoria: lan.cat, data: lan.data };
+  const result = await sbFetch(TB_LAN, { method: 'POST', body: JSON.stringify(row), prefer: 'return=representation' });
   return result[0];
 }
 
-async function deleteLancamento(id) {
-  await sbFetch(TB_LAN + '?id=eq.' + id, {
-    method: 'DELETE',
-    prefer: ''
-  });
+async function updateLancamento(id, lan) {
+  const row = { valor: lan.valor, descricao: lan.desc, categoria: lan.cat, data: lan.data };
+  await sbFetch(TB_LAN + '?id=eq.' + id, { method: 'PATCH', body: JSON.stringify(row), prefer: '' });
 }
 
-async function upsertConfig(food, fuel) {
+async function deleteLancamento(id) {
+  await sbFetch(TB_LAN + '?id=eq.' + id, { method: 'DELETE', prefer: '' });
+}
+
+async function upsertConfig() {
+  const plansJson = JSON.stringify(_config.plans);
+  // Manter compatibilidade com campo legado
+  const food = _config.plans.find(p=>p.cat==='alimentacao')?.limite || 0;
+  const fuel = _config.plans.find(p=>p.cat==='combustivel')?.limite || 0;
+  const body = { orcamento_alimentacao: food, orcamento_combustivel: fuel, plans: plansJson };
   if(_config._dbId) {
-    await sbFetch(TB_CFG + '?id=eq.' + _config._dbId, {
-      method: 'PATCH',
-      body: JSON.stringify({ orcamento_alimentacao: food, orcamento_combustivel: fuel }),
-      prefer: ''
-    });
+    await sbFetch(TB_CFG + '?id=eq.' + _config._dbId, { method: 'PATCH', body: JSON.stringify(body), prefer: '' });
   } else {
-    const result = await sbFetch(TB_CFG, {
-      method: 'POST',
-      body: JSON.stringify({ orcamento_alimentacao: food, orcamento_combustivel: fuel }),
-      prefer: 'return=representation'
-    });
+    const result = await sbFetch(TB_CFG, { method: 'POST', body: JSON.stringify(body), prefer: 'return=representation' });
     if(result[0]) _config._dbId = result[0].id;
   }
 }
@@ -593,34 +747,58 @@ function renderDashboard() {
   document.getElementById('dash-total').textContent = fmt(total);
   document.getElementById('dash-sub').textContent = lans.length + ' lançamento' + (lans.length!==1?'s':'') + ' em ' + document.getElementById('month-label').textContent;
 
-  const foodSpent = lans.filter(l=>l.cat==='alimentacao').reduce((s,l)=>s+l.valor,0);
-  const fuelSpent = lans.filter(l=>l.cat==='combustivel').reduce((s,l)=>s+l.valor,0);
-
-  setProgress('food', foodSpent, _config.food||0);
-  setProgress('fuel', fuelSpent, _config.fuel||0);
-
-  // Por categoria
+  // --- TOP SEGMENTO ---
   const catTotals = {};
   lans.forEach(l => { catTotals[l.cat] = (catTotals[l.cat]||0) + l.valor; });
   const catArr = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
-  const maxCat = catArr[0]?.[1] || 1;
-  const catContainer = document.getElementById('dash-cats');
-  if(catArr.length===0) {
-    catContainer.innerHTML = '<div class="empty-state"><div class="ei">📂</div>Sem lançamentos por categoria</div>';
+  const topSeg = document.getElementById('dash-top-seg');
+  if(catArr.length > 0) {
+    const [topId, topVal] = catArr[0];
+    const topCat = CATS.find(c=>c.id===topId)||{emoji:'📦', nome:topId};
+    const pctOfTotal = total > 0 ? Math.round(topVal/total*100) : 0;
+    topSeg.innerHTML = `<div class="top-seg-card">
+      <div class="top-seg-icon">${topCat.emoji}</div>
+      <div class="top-seg-info">
+        <div class="top-seg-label">🔥 Maior gasto</div>
+        <div class="top-seg-name">${topCat.nome}</div>
+        <div class="top-seg-val">${fmt(topVal)} · ${pctOfTotal}% do total</div>
+      </div>
+      <div class="top-seg-badge">${pctOfTotal}%</div>
+    </div>`;
   } else {
-    catContainer.innerHTML = catArr.map(([id,val])=>{
-      const cat = CATS.find(c=>c.id===id)||{emoji:'📦',nome:id};
-      const pct = Math.round(val/maxCat*100);
-      const color = CAT_COLORS[id]||'#b2bec3';
-      return `<div class="cat-row">
-        <div class="cat-label">${cat.emoji} ${cat.nome}</div>
-        <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${color}"></div></div>
-        <div class="cat-val" style="color:${color}">${fmtShort(val)}</div>
+    topSeg.innerHTML = '';
+  }
+
+  // --- ORÇAMENTOS DINÂMICOS ---
+  const budgetsEl = document.getElementById('dash-budgets');
+  if(_config.plans.length === 0) {
+    budgetsEl.innerHTML = '<div style="grid-column:1/-1;color:var(--text2);font-size:0.82rem;padding:8px 0;">Nenhum planejamento cadastrado. Adicione em Configurações.</div>';
+  } else {
+    budgetsEl.innerHTML = _config.plans.map(plan => {
+      const color = CAT_COLORS[plan.cat] || '#b2bec3';
+      const spent = lans.filter(l=>l.cat===plan.cat).reduce((s,l)=>s+l.valor,0);
+      const pct = plan.limite > 0 ? Math.min(spent/plan.limite*100, 100) : 0;
+      const real = plan.limite > 0 ? Math.round(spent/plan.limite*100) : 0;
+      const over = plan.limite > 0 && spent > plan.limite;
+      return `<div class="budget-card">
+        <div class="bc-header">
+          <div class="bc-icon" style="background:${color}22">${plan.emoji}</div>
+          <div class="bc-name">${plan.nome}</div>
+        </div>
+        <div class="bc-vals">
+          <span class="bc-spent" style="color:${color}">${fmtShort(spent)}</span>
+          <span class="bc-total">/ ${plan.limite>0?fmtShort(plan.limite):'—'}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill${over?' over':''}" style="width:${pct}%;background:${color}"></div></div>
+        <div class="bc-pct">${plan.limite>0 ? real+'% utilizado'+(over?'<span class="over-badge">ACIMA</span>':'') : 'Defina em Config'}</div>
       </div>`;
     }).join('');
   }
 
-  // Recentes
+  // --- POR CATEGORIA ---
+  renderCatList(catArr, total);
+
+  // --- RECENTES ---
   const recent = [...lans].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
   const recentContainer = document.getElementById('dash-recent');
   if(recent.length===0) {
@@ -630,18 +808,27 @@ function renderDashboard() {
   }
 }
 
-function setProgress(key, spent, budget) {
-  const pct = budget > 0 ? Math.min(spent/budget*100, 100) : 0;
-  const real = budget > 0 ? Math.round(spent/budget*100) : 0;
-  const over = budget > 0 && spent > budget;
-  document.getElementById(key+'-spent').textContent = fmtShort(spent);
-  document.getElementById(key+'-budget').textContent = '/ '+(budget>0?fmtShort(budget):'—');
-  const bar = document.getElementById(key+'-bar');
-  bar.style.width = pct+'%';
-  bar.classList.toggle('over', over);
-  document.getElementById(key+'-pct').innerHTML = (budget>0
-    ? real+'% utilizado'+(over?`<span class="over-badge">ACIMA</span>`:'')
-    : 'Defina em Config');
+
+
+function renderCatList(catArr, total) {
+  const catContainer = document.getElementById('dash-cats');
+  const filtered = catArr;
+  const maxCat = catArr[0]?.[1] || 1;
+  if(filtered.length===0) {
+    catContainer.innerHTML = '<div class="empty-state"><div class="ei">📂</div>Sem lançamentos por categoria</div>';
+  } else {
+    catContainer.innerHTML = filtered.map(([id,val])=>{
+      const cat = CATS.find(c=>c.id===id)||{emoji:'📦',nome:id};
+      const pct = Math.round(val/maxCat*100);
+      const color = CAT_COLORS[id]||'#b2bec3';
+      const pctTotal = total > 0 ? Math.round(val/total*100) : 0;
+      return `<div class="cat-row">
+        <div class="cat-label">${cat.emoji} ${cat.nome}</div>
+        <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${color}"></div></div>
+        <div class="cat-val" style="color:${color}">${fmtShort(val)}<span style="font-size:0.65rem;color:var(--text2);margin-left:4px;">${pctTotal}%</span></div>
+      </div>`;
+    }).join('');
+  }
 }
 
 // ===================== TX HTML =====================
@@ -657,20 +844,82 @@ function txHtml(l, mini=false) {
       <div class="tx-meta">${dateStr} · ${cat.nome}</div>
     </div>
     <div class="tx-amount">- ${fmt(l.valor)}</div>
-    ${!mini?`<button class="tx-del" onclick="deletar('${l.id}')">🗑</button>`:''}
+    ${!mini?`<div class="tx-actions">
+      <button class="tx-edit" onclick="abrirEdicao('${l.id}')" title="Editar">✏️</button>
+      <button class="tx-del" onclick="deletar('${l.id}')" title="Excluir">🗑</button>
+    </div>`:''}
   </div>`;
 }
 
 // ===================== TODOS TX =====================
 function renderAllTx() {
-  const lans = getLancamentos(currentMonth).sort((a,b)=>b.data.localeCompare(a.data));
+  const allLans = getLancamentos(currentMonth).sort((a,b)=>b.data.localeCompare(a.data));
+  const lans = lanFilterCat ? allLans.filter(l=>l.cat===lanFilterCat) : allLans;
   const container = document.getElementById('all-tx-list');
+
+  // Renderiza dropdown de filtro
+  renderLanFilterList(allLans);
+
+  // Contador
+  const countEl = document.getElementById('lan-count');
+  if(countEl) {
+    countEl.textContent = lans.length + ' lançamento' + (lans.length!==1?'s':'') +
+      (lanFilterCat ? ' filtrados' : ' este mês');
+  }
+
   if(lans.length===0) {
-    container.innerHTML = '<div class="empty-state"><div class="ei">📋</div>Nenhum lançamento este mês</div>';
+    container.innerHTML = '<div class="empty-state"><div class="ei">📋</div>Nenhum lançamento' +
+      (lanFilterCat?' nesta categoria':' este mês') + '</div>';
     return;
   }
   container.innerHTML = lans.map(l=>txHtml(l, false)).join('');
 }
+
+function renderLanFilterList(allLans) {
+  const list = document.getElementById('lan-filter-list');
+  if(!list) return;
+  const catTotals = {};
+  allLans.forEach(l => { catTotals[l.cat] = (catTotals[l.cat]||0) + l.valor; });
+  const catArr = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const options = [{ id:'', emoji:'🏷️', nome:'Todas as categorias', val:null },
+    ...catArr.map(([id,val])=>{
+      const c = CATS.find(x=>x.id===id)||{emoji:'📦', nome:id};
+      return { id, emoji:c.emoji, nome:c.nome, val };
+    })];
+  list.innerHTML = options.map(opt => {
+    const active = lanFilterCat === opt.id ? 'active' : '';
+    const valStr = opt.val !== null ? `<span class="fo-val">${fmtShort(opt.val)}</span>` : '';
+    return `<div class="filter-option ${active}" onclick="setLanFilter('${opt.id}')">
+      <span class="fo-left">${opt.emoji} ${opt.nome}</span>${valStr}
+    </div>`;
+  }).join('');
+  const selected = options.find(o=>o.id===lanFilterCat)||options[0];
+  const lbl = document.getElementById('lan-filter-label');
+  if(lbl) lbl.textContent = selected.emoji + ' ' + selected.nome;
+}
+
+function toggleLanFilter() {
+  const btn = document.getElementById('lan-filter-btn');
+  const list = document.getElementById('lan-filter-list');
+  btn.classList.toggle('open');
+  list.classList.toggle('open');
+}
+
+function setLanFilter(catId) {
+  lanFilterCat = catId;
+  document.getElementById('lan-filter-btn').classList.remove('open');
+  document.getElementById('lan-filter-list').classList.remove('open');
+  renderAllTx();
+}
+
+// Fechar dropdown lançamentos ao clicar fora
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('lan-filter-btn')?.closest('.filter-dropdown-wrap');
+  if(wrap && !wrap.contains(e.target)) {
+    document.getElementById('lan-filter-btn')?.classList.remove('open');
+    document.getElementById('lan-filter-list')?.classList.remove('open');
+  }
+});
 
 async function deletar(id) {
   if(!confirm('Remover este lançamento?')) return;
@@ -687,7 +936,64 @@ async function deletar(id) {
   hideLoading();
 }
 
-// ===================== FORM =====================
+// ===================== EDITAR =====================
+function abrirEdicao(id) {
+  const l = _lancamentos.find(x=>x.id===id);
+  if(!l) return;
+  editingId = id;
+  editingCat = l.cat;
+  document.getElementById('edit-valor').value = l.valor;
+  document.getElementById('edit-desc').value = l.desc || '';
+  document.getElementById('edit-data').value = l.data;
+  const grid = document.getElementById('edit-cat-grid');
+  grid.innerHTML = CATS.map(c=>`
+    <div class="cat-btn ${editingCat===c.id?'selected':''}" onclick="selectEditCat('${c.id}')">
+      <span class="cat-emoji">${c.emoji}</span>${c.nome}
+    </div>
+  `).join('');
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function selectEditCat(id) {
+  editingCat = id;
+  document.querySelectorAll('#edit-cat-grid .cat-btn').forEach(b=>{
+    b.classList.toggle('selected', b.getAttribute('onclick').includes("'"+id+"'"));
+  });
+}
+
+function closeEditModal(e) {
+  if(e.target === document.getElementById('edit-modal')) closeEditModalForce();
+}
+function closeEditModalForce() {
+  document.getElementById('edit-modal').classList.remove('show');
+  editingId = null;
+  editingCat = '';
+}
+
+async function salvarEdicao() {
+  if(!editingId) return;
+  const valor = parseFloat(document.getElementById('edit-valor').value);
+  const desc  = document.getElementById('edit-desc').value.trim();
+  const data_ = document.getElementById('edit-data').value;
+  if(!valor || valor<=0) { toast('Informe o valor!', true); return; }
+  if(!editingCat) { toast('Selecione uma categoria!', true); return; }
+  if(!data_) { toast('Informe a data!', true); return; }
+  showLoading('Atualizando...');
+  try {
+    await updateLancamento(editingId, { valor, desc, cat: editingCat, data: data_ });
+    const idx = _lancamentos.findIndex(l=>l.id===editingId);
+    if(idx !== -1) _lancamentos[idx] = { id: editingId, valor, desc, cat: editingCat, data: data_ };
+    closeEditModalForce();
+    renderAllTx();
+    renderDashboard();
+    toast('✅ Lançamento atualizado!');
+  } catch(e) {
+    toast('Erro ao atualizar: '+e.message.slice(0,60), true);
+  }
+  hideLoading();
+}
+
+// ===================== FORM NOVO =====================
 function initForm() {
   const today = new Date();
   const iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
@@ -702,7 +1008,7 @@ function initForm() {
 
 function selectCat(id) {
   selectedCat = id;
-  document.querySelectorAll('.cat-btn').forEach(b=>{
+  document.querySelectorAll('#cat-grid .cat-btn').forEach(b=>{
     b.classList.toggle('selected', b.getAttribute('onclick').includes("'"+id+"'"));
   });
 }
@@ -714,7 +1020,6 @@ async function salvarLancamento() {
   if(!valor || valor<=0) { toast('Informe o valor!', true); return; }
   if(!selectedCat)       { toast('Selecione uma categoria!', true); return; }
   if(!data_)             { toast('Informe a data!', true); return; }
-
   const btn = document.getElementById('btn-salvar');
   btn.disabled = true;
   showLoading('Salvando...');
@@ -734,24 +1039,75 @@ async function salvarLancamento() {
   hideLoading();
 }
 
-// ===================== CONFIG =====================
+// ===================== CONFIG / PLANEJAMENTOS =====================
 function loadConfigUI() {
-  document.getElementById('cfg-food').value = _config.food || 0;
-  document.getElementById('cfg-fuel').value = _config.fuel || 0;
+  renderPlanList();
+  populatePlanCatSelect();
   checkConnection();
 }
 
-async function salvarConfig() {
-  const food = parseFloat(document.getElementById('cfg-food').value)||0;
-  const fuel = parseFloat(document.getElementById('cfg-fuel').value)||0;
-  showLoading('Salvando configuração...');
+function renderPlanList() {
+  const list = document.getElementById('plan-list');
+  if(_config.plans.length === 0) {
+    list.innerHTML = '<div style="color:var(--text2);font-size:0.82rem;text-align:center;padding:8px 0;">Nenhum planejamento cadastrado</div>';
+    return;
+  }
+  list.innerHTML = _config.plans.map((p,i) => {
+    const cat = CATS.find(c=>c.id===p.cat);
+    const catLabel = cat ? cat.nome : p.cat;
+    return `<div class="plan-item">
+      <div class="plan-item-emoji">${p.emoji}</div>
+      <div class="plan-item-name">${p.nome}<br><span style="font-size:0.72rem;color:var(--text2)">${catLabel}</span></div>
+      <div class="plan-item-val">${fmt(p.limite)}</div>
+      <button class="plan-item-del" onclick="removerPlan(${i})">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function populatePlanCatSelect() {
+  const sel = document.getElementById('new-plan-cat');
+  sel.innerHTML = '<option value="">-- Categoria vinculada --</option>' +
+    CATS.map(c=>`<option value="${c.id}">${c.emoji} ${c.nome}</option>`).join('');
+}
+
+function toggleAddPlan() {
+  const form = document.getElementById('add-plan-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function adicionarPlan() {
+  const emoji = document.getElementById('new-plan-emoji').value.trim() || '🏷️';
+  const nome  = document.getElementById('new-plan-nome').value.trim();
+  const cat   = document.getElementById('new-plan-cat').value;
+  const limite = parseFloat(document.getElementById('new-plan-valor').value) || 0;
+  if(!nome) { toast('Informe o nome do planejamento!', true); return; }
+  if(!cat)  { toast('Selecione uma categoria!', true); return; }
+  if(limite <= 0) { toast('Informe o limite!', true); return; }
+  _config.plans.push({ id: 'p'+Date.now(), emoji, nome, cat, limite });
+  document.getElementById('new-plan-emoji').value = '';
+  document.getElementById('new-plan-nome').value = '';
+  document.getElementById('new-plan-cat').value = '';
+  document.getElementById('new-plan-valor').value = '';
+  document.getElementById('add-plan-form').style.display = 'none';
+  renderPlanList();
+  toast('Planejamento adicionado — clique em Salvar');
+}
+
+function removerPlan(idx) {
+  if(!confirm('Remover planejamento "'+_config.plans[idx].nome+'"?')) return;
+  _config.plans.splice(idx, 1);
+  renderPlanList();
+  toast('Removido — clique em Salvar para confirmar');
+}
+
+async function salvarPlans() {
+  showLoading('Salvando planejamentos...');
   try {
-    await upsertConfig(food, fuel);
-    _config.food = food;
-    _config.fuel = fuel;
-    toast('✅ Configurações salvas!');
+    await upsertConfig();
+    toast('✅ Planejamentos salvos!');
+    renderDashboard();
   } catch(e) {
-    toast('Erro ao salvar config: '+e.message.slice(0,50), true);
+    toast('Erro ao salvar: '+e.message.slice(0,50), true);
   }
   hideLoading();
 }
@@ -775,7 +1131,7 @@ async function limparMes() {
 function limparTudo() {
   if(!confirm('Isso apaga apenas o cache local. Os dados no Supabase permanecem. Continuar?')) return;
   _lancamentos = [];
-  _config = { food:0, fuel:0 };
+  _config = { plans: [], _dbId: null };
   renderDashboard();
   renderAllTx();
   toast('Cache local limpo');
@@ -802,8 +1158,6 @@ initMonth();
 renderMonth();
 initForm();
 
-// Cria tabelas automaticamente via SQL RPC se não existirem
-// (usuário precisa criar manualmente no Supabase — veja instruções em Config)
 loadFromSupabase().then(()=>{
   renderDashboard();
   renderAllTx();
