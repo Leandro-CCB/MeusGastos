@@ -554,6 +554,7 @@
     <div class="value" id="dash-total">R$ 0,00</div>
     <div class="sub" id="dash-sub">0 lançamentos este mês</div>
   </div>
+  <button class="btn-whatsapp" style="background:#e74c3c;" onclick="exportarPDFMes()">📄 Exportar PDF do mês</button>
 
   <!-- Top segmento -->
   <div id="dash-top-seg"></div>
@@ -1795,6 +1796,71 @@ function nomeArquivoBackup() {
   const d = new Date();
   const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   return 'meugasto-backup-'+iso+'.json';
+}
+
+// ===================== EXPORTAR PDF (via impressão do navegador) =====================
+function exportarPDFMes() {
+  const lans = getLancamentos(currentMonth).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  if(lans.length===0) { toast('Nenhum lançamento neste mês para exportar', true); return; }
+
+  const total = lans.reduce((s,l)=>s+l.valor,0);
+  const catTotals = {};
+  lans.forEach(l=>{ catTotals[l.cat] = (catTotals[l.cat]||0) + l.valor; });
+  const catRows = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([id,val])=>{
+    const cat = CATS.find(c=>c.id===id) || {emoji:'📦', nome:id};
+    const pct = total>0 ? Math.round(val/total*100) : 0;
+    return `<tr><td>${cat.emoji} ${cat.nome}</td><td style="text-align:right;">${fmt(val)}</td><td style="text-align:right;">${pct}%</td></tr>`;
+  }).join('');
+  const rows = lans.map(l=>{
+    const cat = CATS.find(c=>c.id===l.cat) || {emoji:'📦', nome:l.cat};
+    const [y,m,d] = l.data.split('-');
+    return `<tr><td>${d}/${m}/${y}</td><td>${cat.emoji} ${cat.nome}</td><td>${(l.desc||'-').replace(/</g,'&lt;')}</td><td style="text-align:right;">${fmt(l.valor)}</td></tr>`;
+  }).join('');
+  const mesLabel = document.getElementById('month-label').textContent;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>MeuGasto - ${mesLabel}</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1d27;padding:24px;}
+    .header{display:flex;align-items:center;gap:14px;border-bottom:2px solid #6c63ff;padding-bottom:14px;margin-bottom:20px;}
+    .header img{height:50px;object-fit:contain;}
+    h1{font-size:1.25rem;margin:0;}
+    h2{font-size:0.95rem;color:#555;margin:2px 0 0;font-weight:normal;}
+    .total-box{background:#f4f3ff;border:1px solid #6c63ff;border-radius:8px;padding:14px 18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;}
+    .total-box .val{font-size:1.35rem;font-weight:bold;color:#6c63ff;}
+    table{width:100%;border-collapse:collapse;margin-bottom:26px;font-size:0.82rem;}
+    th{text-align:left;background:#f0f0f5;padding:8px;border-bottom:2px solid #ddd;}
+    td{padding:6px 8px;border-bottom:1px solid #eee;}
+    .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333;}
+    .footer{margin-top:24px;font-size:0.7rem;color:#999;text-align:center;}
+    @media print { body{padding:6px;} }
+  </style></head>
+  <body>
+    <div class="header">
+      <img src="LMA_LOGO.png" onerror="this.style.display='none'">
+      <div><h1>MeuGasto — Relatório de Gastos</h1><h2>${mesLabel}</h2></div>
+    </div>
+    <div class="total-box"><span>Total gasto no mês</span><span class="val">${fmt(total)}</span></div>
+    <div class="section-title">Resumo por categoria</div>
+    <table><thead><tr><th>Categoria</th><th style="text-align:right;">Valor</th><th style="text-align:right;">% do total</th></tr></thead><tbody>${catRows}</tbody></table>
+    <div class="section-title">Lançamentos (${lans.length})</div>
+    <table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th style="text-align:right;">Valor</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="footer">Gerado pelo MeuGasto em ${new Date().toLocaleString('pt-BR')}</div>
+  </body></html>`;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0'; iframe.style.bottom = '0';
+  iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+
+  toast('📄 Abrindo tela de impressão — escolha "Salvar como PDF"');
+  setTimeout(() => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => { if(iframe.parentNode) document.body.removeChild(iframe); }, 1500);
+  }, 350);
 }
 
 function exportarBackup() {
