@@ -1887,12 +1887,12 @@ function exportarPDFMes() {
     <\/script>
   </body></html>`;
 
-  const win = window.open('', '_blank');
+  const blob = new Blob([html], {type: 'text/html'});
+  const blobUrl = URL.createObjectURL(blob);
+  const win = window.open(blobUrl, '_blank');
   if(!win) { toast('Não foi possível abrir a tela de impressão. Verifique se pop-ups estão bloqueados.', true); return; }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
   toast('📄 Abrindo tela de impressão — escolha "Salvar como PDF"');
+  setTimeout(()=>URL.revokeObjectURL(blobUrl), 30000);
 }
 
 function exportarBackup() {
