@@ -452,7 +452,7 @@
   <div style="width:100%;max-width:380px;">
     <div style="text-align:center;margin-bottom:28px;">
       <img src="LMA_LOGO.png" alt="LMA Soluções" onerror="this.style.display='none'"
-        style="height:56px;max-width:180px;object-fit:contain;margin-bottom:6px;">
+        style="height:112px;max-width:280px;object-fit:contain;margin-bottom:6px;">
       <div style="font-size:0.78rem;font-weight:700;letter-spacing:1px;color:#8890b0;text-transform:uppercase;margin-bottom:14px;">LMA Soluções</div>
       <div style="font-size:2.4rem;margin-bottom:8px;">💳</div>
       <div style="font-size:1.3rem;font-weight:800;color:#e8eaf0;">Meu<span style="color:#6c63ff;">Gasto</span></div>
@@ -554,6 +554,18 @@
   <div class="section-title">Orçamentos mensais</div>
   <div class="budget-cards" id="dash-budgets"></div>
 
+  <div class="section-title">Meus cartões</div>
+  <div id="dash-cartoes"></div>
+
+  <div class="section-title">Compras parceladas em aberto</div>
+  <div id="dash-parcelas"></div>
+
+  <div class="section-title">Gastos por mês</div>
+  <div id="dash-chart-gastos"></div>
+
+  <div class="section-title">Evolução dos investimentos</div>
+  <div id="dash-chart-investimentos"></div>
+
   <div class="section-title">Por categoria</div>
   <div class="cat-list" id="dash-cats"></div>
 
@@ -595,8 +607,12 @@
   <div class="form-card">
     <div class="card-select-wrap" id="cartao-select-wrap"></div>
     <div class="form-row">
-      <label>Valor (R$)</label>
+      <label>Valor (R$) <span style="color:var(--text2);font-weight:400;">— se parcelado, informe o valor TOTAL da compra</span></label>
       <input type="number" id="fc-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <label>Parcelas</label>
+      <input type="number" id="fc-parcelas" placeholder="1" min="1" max="48" step="1" value="1">
     </div>
     <div class="form-row">
       <label>Descrição</label>
@@ -990,6 +1006,16 @@ function renderDashboard() {
     }).join('');
   }
 
+  // --- MEUS CARTÕES ---
+  renderDashCartoes();
+
+  // --- COMPRAS PARCELADAS EM ABERTO ---
+  renderDashParcelas();
+
+  // --- GRÁFICOS ---
+  renderChartGastos();
+  renderChartInvestimentos();
+
   // --- POR CATEGORIA ---
   renderCatList(catArr, total);
 
@@ -1001,6 +1027,118 @@ function renderDashboard() {
   } else {
     recentContainer.innerHTML = recent.map(l=>txHtml(l, true)).join('');
   }
+}
+
+// --- Cartões cadastrados (resumo no dashboard) ---
+function renderDashCartoes() {
+  const el = document.getElementById('dash-cartoes');
+  if(!el) return;
+  if(_cartoes.length===0) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">💳</div>Nenhum cartão cadastrado ainda</div>';
+    return;
+  }
+  el.innerHTML = _cartoes.map(c=>{
+    const fatura = getComprasCartao(c.id, currentMonth).reduce((s,x)=>s+x.valor,0);
+    const pct = c.limite>0 ? Math.min(fatura/c.limite*100,100) : 0;
+    return `<div class="card-item">
+      <div class="card-item-top">
+        <div class="card-item-icon">${c.emoji}</div>
+        <div class="card-item-name">${c.nome}</div>
+      </div>
+      <div class="card-item-vals">
+        <span class="card-item-fatura">${fmt(fatura)}</span>
+        <span class="card-item-limite">${c.limite>0?'/ limite '+fmt(c.limite):''}</span>
+      </div>
+      ${c.limite>0 ? `<div class="progress-bar"><div class="progress-fill${fatura>c.limite?' over':''}" style="width:${pct}%;background:#6c63ff"></div></div>` : ''}
+      <div class="card-item-meta">Fatura de ${document.getElementById('month-label').textContent}${c.venc?' · vencimento dia '+c.venc:''}</div>
+    </div>`;
+  }).join('');
+}
+
+// --- Compras parceladas em aberto (parcelas futuras a partir do mês atual) ---
+function renderDashParcelas() {
+  const el = document.getElementById('dash-parcelas');
+  if(!el) return;
+  const grupos = {};
+  _compras.filter(c=>c.grupoParcelaId).forEach(c=>{
+    if(!grupos[c.grupoParcelaId]) grupos[c.grupoParcelaId] = [];
+    grupos[c.grupoParcelaId].push(c);
+  });
+  const abertos = Object.values(grupos).filter(g => g.some(c=>c.data.startsWith(currentMonth) || c.data > (currentMonth+'-31')));
+  if(abertos.length===0) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">🧾</div>Nenhuma compra parcelada em aberto</div>';
+    return;
+  }
+  el.innerHTML = abertos.map(g=>{
+    g.sort((a,b)=>a.data.localeCompare(b.data));
+    const atual = g.find(c=>c.data.startsWith(currentMonth)) || g.find(c=>c.data > currentMonth) || g[0];
+    const cartao = _cartoes.find(x=>x.id===atual.cartaoId) || {emoji:'💳', nome:'Cartão'};
+    const restantes = g.filter(c=>c.data >= currentMonth).length;
+    return `<div class="tx-item">
+      <div class="tx-icon" style="background:rgba(108,99,255,.15)">${cartao.emoji}</div>
+      <div class="tx-info">
+        <div class="tx-desc">${atual.desc||cartao.nome} <span style="background:rgba(108,99,255,.18);color:#8f88ff;border-radius:6px;padding:1px 6px;font-size:0.68rem;font-weight:700;margin-left:4px;">${atual.parcelaAtual}/${atual.parcelaTotal}</span></div>
+        <div class="tx-meta">${cartao.nome} · ${restantes} parcela${restantes!==1?'s':''} restante${restantes!==1?'s':''}</div>
+      </div>
+      <div class="tx-amount">- ${fmt(atual.valor)}</div>
+    </div>`;
+  }).join('');
+}
+
+// --- GRÁFICO DE BARRAS EM SVG (reutilizável) ---
+function svgBarChart(labels, values, color, formatFn) {
+  const W = 320, H = 160, padL = 8, padR = 8, padT = 16, padB = 26;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+  const maxV = Math.max(...values, 1);
+  const n = values.length;
+  const gap = 10;
+  const barW = (chartW - gap*(n-1)) / n;
+  let bars = '';
+  let labelsHtml = '';
+  values.forEach((v,i)=>{
+    const barH = maxV>0 ? (v/maxV)*chartH : 0;
+    const x = padL + i*(barW+gap);
+    const y = padT + (chartH - barH);
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(barH,2).toFixed(1)}" rx="4" fill="${color}"/>`;
+    bars += `<text x="${(x+barW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="8.5" fill="var(--text2)" text-anchor="middle">${formatFn(v)}</text>`;
+    labelsHtml += `<text x="${(x+barW/2).toFixed(1)}" y="${H-8}" font-size="9" fill="var(--text2)" text-anchor="middle">${labels[i]}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${bars}${labelsHtml}</svg>`;
+}
+
+// --- Gráfico: gastos dos últimos 6 meses ---
+function renderChartGastos() {
+  const el = document.getElementById('dash-chart-gastos');
+  if(!el) return;
+  const meses = [];
+  const [y0,m0] = currentMonth.split('-').map(Number);
+  for(let i=5;i>=0;i--){
+    const dt = new Date(y0, m0-1-i, 1);
+    meses.push(dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'));
+  }
+  const nomesMes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const labels = meses.map(mm=>nomesMes[parseInt(mm.split('-')[1])-1]);
+  const valores = meses.map(mm => getLancamentos(mm).reduce((s,l)=>s+l.valor,0));
+  if(valores.every(v=>v===0)) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">📊</div>Sem dados suficientes ainda</div>';
+    return;
+  }
+  el.innerHTML = `<div class="form-card" style="padding:14px;">${svgBarChart(labels, valores, '#6c63ff', fmtShort)}</div>`;
+}
+
+// --- Gráfico: investimentos por tipo ---
+function renderChartInvestimentos() {
+  const el = document.getElementById('dash-chart-investimentos');
+  if(!el) return;
+  if(_investimentos.length===0) {
+    el.innerHTML = '<div class="empty-state"><div class="ei">📈</div>Nenhum investimento cadastrado ainda</div>';
+    return;
+  }
+  const porTipo = {};
+  _investimentos.forEach(i=>{ porTipo[i.tipo] = (porTipo[i.tipo]||0) + i.valor; });
+  const labels = Object.keys(porTipo);
+  const valores = Object.values(porTipo);
+  el.innerHTML = `<div class="form-card" style="padding:14px;">${svgBarChart(labels, valores, '#2ecc71', fmtShort)}</div>`;
 }
 
 function renderCatList(catArr, total) {
@@ -1307,13 +1445,21 @@ function renderCartoesPage() {
   }
 }
 
+function addMonthsToData(dataIso, n) {
+  const [y,m,d] = dataIso.split('-').map(Number);
+  const dt = new Date(y, m-1+n, d);
+  return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+}
+
 function compraHtml(c) {
   const cartao = _cartoes.find(x=>x.id===c.cartaoId) || {emoji:'💳', nome:'Cartão'};
   const [y,m,d] = c.data.split('-');
+  const parcelaBadge = (c.parcelaTotal && c.parcelaTotal>1)
+    ? `<span style="background:rgba(108,99,255,.18);color:#8f88ff;border-radius:6px;padding:1px 6px;font-size:0.68rem;font-weight:700;margin-left:6px;">${c.parcelaAtual}/${c.parcelaTotal}</span>` : '';
   return `<div class="tx-item">
     <div class="tx-icon" style="background:rgba(108,99,255,.15)">${cartao.emoji}</div>
     <div class="tx-info">
-      <div class="tx-desc">${c.desc||cartao.nome}</div>
+      <div class="tx-desc">${c.desc||cartao.nome}${parcelaBadge}</div>
       <div class="tx-meta">${d}/${m} · ${cartao.nome}</div>
     </div>
     <div class="tx-amount">- ${fmt(c.valor)}</div>
@@ -1325,21 +1471,38 @@ function compraHtml(c) {
 
 function salvarCompraCartao() {
   if(!selectedCartaoId) { toast('Cadastre e selecione um cartão!', true); return; }
-  const valor = parseFloat(document.getElementById('fc-valor').value);
+  const valorTotal = parseFloat(document.getElementById('fc-valor').value);
+  const parcelas = Math.max(1, parseInt(document.getElementById('fc-parcelas').value) || 1);
   const desc  = document.getElementById('fc-desc').value.trim();
   const data_ = document.getElementById('fc-data').value;
-  if(!valor || valor<=0) { toast('Informe o valor!', true); return; }
+  if(!valorTotal || valorTotal<=0) { toast('Informe o valor!', true); return; }
   if(!data_) { toast('Informe a data!', true); return; }
-  _compras.unshift({ id: uid(), cartaoId: selectedCartaoId, valor, desc, data: data_ });
+
+  const valorParcela = Math.round((valorTotal/parcelas) * 100) / 100;
+  const grupoParcelaId = parcelas > 1 ? uid() : null;
+  for(let i=0; i<parcelas; i++) {
+    _compras.unshift({
+      id: uid(),
+      cartaoId: selectedCartaoId,
+      valor: valorParcela,
+      desc,
+      data: addMonthsToData(data_, i),
+      parcelaAtual: parcelas>1 ? i+1 : null,
+      parcelaTotal: parcelas>1 ? parcelas : null,
+      grupoParcelaId
+    });
+  }
   salvarComprasLS();
   document.getElementById('fc-valor').value = '';
+  document.getElementById('fc-parcelas').value = '1';
   document.getElementById('fc-desc').value = '';
   renderCartoesPage();
-  toast('✅ Compra lançada!');
+  renderDashboard();
+  toast(parcelas>1 ? `✅ Compra lançada em ${parcelas}x!` : '✅ Compra lançada!');
 }
 
 function deletarCompraCartao(id) {
-  if(!confirm('Remover esta compra?')) return;
+  if(!confirm('Remover esta compra? Se for parcelada, remove apenas esta parcela.')) return;
   _compras = _compras.filter(c=>c.id!==id);
   salvarComprasLS();
   renderCartoesPage();
