@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>MeuGasto</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MeuGasto">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <style>
   :root {
     --bg: #0f1117;
@@ -441,6 +447,23 @@
 </head>
 <body>
 
+<!-- ==================== TELA DE LICENÇA ==================== -->
+<div id="license-gate" style="position:fixed;inset:0;background:#0f1117;z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="width:100%;max-width:380px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:2.4rem;margin-bottom:8px;">💳</div>
+      <div style="font-size:1.3rem;font-weight:800;color:#e8eaf0;">Meu<span style="color:#6c63ff;">Gasto</span></div>
+      <div style="font-size:0.82rem;color:#8890b0;margin-top:4px;">Insira o código de licença para ativar</div>
+    </div>
+    <input type="text" id="license-input" placeholder="Código de licença" autocomplete="off" autocapitalize="off"
+      onkeydown="if(event.key==='Enter') ativarLicenca();"
+      style="width:100%;padding:14px;background:#1a1d27;border:1px solid #2e3250;border-radius:12px;color:#e8eaf0;font-size:1rem;text-align:center;letter-spacing:1px;outline:none;margin-bottom:12px;">
+    <button id="license-btn" onclick="ativarLicenca()"
+      style="width:100%;padding:15px;background:#6c63ff;border:none;border-radius:12px;color:#fff;font-size:1rem;font-weight:700;cursor:pointer;">Ativar</button>
+    <div id="license-msg" style="margin-top:14px;text-align:center;font-size:0.82rem;color:#ff6b6b;min-height:18px;"></div>
+  </div>
+</div>
+
 <div class="header">
   <h1>Meu<span>Gasto</span></h1>
   <div class="header-right">
@@ -693,6 +716,81 @@
 </div>
 
 <script>
+// ===================== PWA: SERVICE WORKER =====================
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+
+// ===================== LICENÇA (Supabase - apenas controle de acesso) =====================
+const SB_URL = 'https://sayagmwiuxznmcazzftb.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNheWFnbXdpdXh6bm1jYXp6ZnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njg4NDksImV4cCI6MjA5MjQ0NDg0OX0.eTPVg0c757QDvs5UBCsxCkJCNYBBEZA9A7KbQSbp9ug';
+
+function getDeviceId() {
+  let id = localStorage.getItem('meugasto_device_id');
+  if(!id) {
+    id = 'dev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
+    localStorage.setItem('meugasto_device_id', id);
+  }
+  return id;
+}
+
+function licencaJaAtiva() {
+  return localStorage.getItem('meugasto_licenca_ok') === 'true';
+}
+
+function esconderGateLicenca() {
+  const gate = document.getElementById('license-gate');
+  if(gate) gate.style.display = 'none';
+}
+
+async function ativarLicenca() {
+  const input = document.getElementById('license-input');
+  const btn = document.getElementById('license-btn');
+  const msg = document.getElementById('license-msg');
+  const codigo = (input.value || '').trim().toUpperCase();
+  if(!codigo) { msg.textContent = 'Informe o código de licença.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando...';
+  msg.textContent = '';
+  msg.style.color = '#ff6b6b';
+
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/rpc/validar_licenca', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_codigo: codigo, p_dispositivo: getDeviceId() })
+    });
+    if(!res.ok) throw new Error('Falha na verificação (' + res.status + ')');
+    const valido = await res.json();
+    if(valido === true) {
+      localStorage.setItem('meugasto_licenca_ok', 'true');
+      localStorage.setItem('meugasto_licenca_codigo', codigo);
+      esconderGateLicenca();
+    } else {
+      msg.textContent = 'Código inválido, já usado em outro aparelho, ou desativado.';
+    }
+  } catch(e) {
+    msg.textContent = 'Erro ao verificar licença. Verifique sua internet.';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Ativar';
+}
+
+function checarLicencaAoAbrir() {
+  if(licencaJaAtiva()) {
+    esconderGateLicenca();
+  } else {
+    document.getElementById('license-input')?.focus();
+  }
+}
+
 // ===================== ARMAZENAMENTO LOCAL (localStorage) =====================
 const LS_KEYS = {
   lancamentos: 'meugasto_lancamentos',
@@ -1513,6 +1611,7 @@ function toast(msg, isErr=false) {
 }
 
 // ===================== INIT =====================
+checarLicencaAoAbrir();
 loadAllFromLocal();
 initMonth();
 renderMonth();
