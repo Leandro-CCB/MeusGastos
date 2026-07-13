@@ -1717,7 +1717,7 @@ async function compartilharWhatsapp() {
     // Baixa o arquivo e abre o WhatsApp com uma mensagem de texto explicando para anexar o arquivo.
     exportarBackup();
     const msg = encodeURIComponent('📊 Backup do MeuGasto (' + new Date().toLocaleDateString('pt-BR') + '). O arquivo ' + nomeArquivoBackup() + ' acabou de ser baixado — anexe-o aqui no WhatsApp.');
-    window.open('https://wa.me/?text=' + msg, '_blank');
+    window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
     toast('Arquivo baixado — anexe-o na conversa do WhatsApp que abriu');
   } catch(e) {
     if(e.name === 'AbortError') return; // usuário cancelou o compartilhamento
