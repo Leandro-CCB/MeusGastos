@@ -307,6 +307,65 @@
   }
   .btn-toggle-add:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* CARTÕES DE CRÉDITO */
+  .card-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px; margin-bottom: 10px;
+  }
+  .card-item-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .card-item-icon { font-size: 1.4rem; }
+  .card-item-name { flex: 1; font-size: 0.92rem; font-weight: 700; }
+  .card-item-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 0.85rem; opacity: .6; padding: 4px; }
+  .card-item-del:hover { opacity: 1; color: var(--warn); }
+  .card-item-vals { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .card-item-fatura { font-size: 1.05rem; font-weight: 700; color: var(--warn); }
+  .card-item-limite { font-size: 0.72rem; color: var(--text2); }
+  .card-item-meta { font-size: 0.72rem; color: var(--text2); margin-top: 4px; }
+  .card-select-wrap { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; }
+  .card-chip {
+    flex-shrink: 0; padding: 9px 14px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: var(--surface2);
+    color: var(--text2); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: all .15s;
+  }
+  .card-chip.selected { border-color: var(--accent); background: rgba(108,99,255,.15); color: var(--text); }
+
+  /* INVESTIMENTOS */
+  .inv-total-card {
+    background: linear-gradient(135deg, var(--accent2) 0%, #26de81 100%);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 16px; color: #0f1117;
+  }
+  .inv-total-card .label { font-size: 0.75rem; opacity: .75; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .inv-total-card .value { font-size: 2rem; font-weight: 800; margin: 4px 0; }
+  .inv-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .inv-item-icon { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; background: rgba(0,212,170,.15); }
+  .inv-item-info { flex: 1; min-width: 0; }
+  .inv-item-name { font-size: 0.88rem; font-weight: 600; }
+  .inv-item-meta { font-size: 0.72rem; color: var(--text2); margin-top: 2px; }
+  .inv-item-val { font-size: 0.92rem; font-weight: 700; color: var(--accent2); white-space: nowrap; }
+  .inv-item-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 0.9rem; opacity: .6; padding: 4px; }
+  .inv-item-del:hover { opacity: 1; color: var(--warn); }
+
+  /* BACKUP */
+  .backup-btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .backup-btn-row .btn-primary, .backup-btn-row .btn-secondary { margin-top: 0; }
+  .btn-whatsapp {
+    width: 100%; padding: 13px; background: #25D366; border: none;
+    border-radius: 12px; color: #0f1117; font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .file-input-hidden { display: none; }
+  .btn-import {
+    width: 100%; padding: 13px; background: var(--surface2); border: 1.5px dashed var(--border);
+    border-radius: 12px; color: var(--text2); font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; margin-top: 8px;
+  }
+  .btn-import:hover { border-color: var(--accent); color: var(--accent); }
+
   /* MODAL EDITAR */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(15,17,23,.9);
@@ -337,12 +396,13 @@
   }
   .nav-item {
     flex: 1; display: flex; flex-direction: column;
-    align-items: center; gap: 3px; padding: 6px;
+    align-items: center; gap: 2px; padding: 5px 2px;
     cursor: pointer; color: var(--text2);
-    font-size: 0.65rem; font-weight: 600;
+    font-size: 0.58rem; font-weight: 600;
     transition: color .15s;
+    white-space: nowrap;
   }
-  .nav-item .nav-icon { font-size: 1.3rem; }
+  .nav-item .nav-icon { font-size: 1.15rem; }
   .nav-item.active { color: var(--accent); }
 
   /* TOAST */
@@ -385,8 +445,8 @@
   <h1>Meu<span>Gasto</span></h1>
   <div class="header-right">
     <div class="sync-status">
-      <div class="sync-dot" id="sync-dot"></div>
-      <span id="sync-label">offline</span>
+      <div class="sync-dot ok" id="sync-dot"></div>
+      <span id="sync-label">local</span>
     </div>
     <div class="month-nav">
       <button onclick="changeMonth(-1)">‹</button>
@@ -488,6 +548,85 @@
   <div id="all-tx-list"></div>
 </div>
 
+<!-- ==================== CARTÕES DE CRÉDITO ==================== -->
+<div class="page" id="page-cartoes">
+  <div class="section-title">Meus cartões</div>
+  <div id="cartoes-list"></div>
+  <button class="btn-toggle-add" onclick="toggleAddCartao()">➕ Adicionar cartão</button>
+  <div class="add-plan-form" id="add-cartao-form" style="display:none; margin-top:12px;">
+    <div class="add-plan-row">
+      <input type="text" class="emoji-pick" id="new-cartao-emoji" placeholder="💳" maxlength="2">
+      <input type="text" id="new-cartao-nome" placeholder="Nome do cartão (Ex: Nubank)">
+    </div>
+    <div class="add-plan-row">
+      <input type="number" id="new-cartao-limite" placeholder="Limite (R$)" min="0" step="50">
+      <input type="number" id="new-cartao-venc" placeholder="Dia de vencimento" min="1" max="31">
+    </div>
+    <button class="btn-add-plan" onclick="adicionarCartao()">Adicionar cartão</button>
+  </div>
+
+  <div class="section-title">Lançar compra no cartão</div>
+  <div class="form-card">
+    <div class="card-select-wrap" id="cartao-select-wrap"></div>
+    <div class="form-row">
+      <label>Valor (R$)</label>
+      <input type="number" id="fc-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <label>Descrição</label>
+      <input type="text" id="fc-desc" placeholder="Ex: Compra online">
+    </div>
+    <div class="form-row">
+      <label>Data</label>
+      <input type="date" id="fc-data">
+    </div>
+    <button class="btn-primary" onclick="salvarCompraCartao()">Salvar compra</button>
+  </div>
+
+  <div class="section-title">Compras deste mês</div>
+  <div id="cartoes-compras-list"></div>
+</div>
+
+<!-- ==================== INVESTIMENTOS ==================== -->
+<div class="page" id="page-investimentos">
+  <div class="inv-total-card">
+    <div class="label">Total investido</div>
+    <div class="value" id="inv-total">R$ 0,00</div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-card-title">➕ Novo investimento</div>
+    <div class="form-row">
+      <label>Tipo</label>
+      <select id="fi-tipo">
+        <option value="cdb">CDB</option>
+        <option value="tesouro">Tesouro Direto</option>
+        <option value="acoes">Ações</option>
+        <option value="fii">Fundos Imobiliários (FII)</option>
+        <option value="poupanca">Poupança</option>
+        <option value="cripto">Criptomoedas</option>
+        <option value="outros">Outros</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Nome / Descrição</label>
+      <input type="text" id="fi-nome" placeholder="Ex: CDB Banco XP 120% CDI">
+    </div>
+    <div class="form-row">
+      <label>Valor investido (R$)</label>
+      <input type="number" id="fi-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <label>Data da aplicação</label>
+      <input type="date" id="fi-data">
+    </div>
+    <button class="btn-primary" onclick="salvarInvestimento()">Salvar investimento</button>
+  </div>
+
+  <div class="section-title">Meus investimentos</div>
+  <div id="inv-list"></div>
+</div>
+
 <!-- ==================== CONFIG ==================== -->
 <div class="page" id="page-config">
   <div class="config-card">
@@ -514,18 +653,20 @@
   </div>
 
   <div class="config-card">
-    <h3>☁️ Sincronização Supabase</h3>
+    <h3>💾 Backup local</h3>
     <div class="supabase-status-box">
-      <p id="supa-info">Verificando conexão...</p>
+      <p id="backup-info">Seus dados ficam salvos apenas neste dispositivo (localStorage). Faça backup regularmente para não perder nada.</p>
     </div>
-    <br>
-    <button class="btn-primary" onclick="syncNow()">🔄 Sincronizar agora</button>
+    <button class="btn-primary" onclick="exportarBackup()" style="margin-top:12px;">⬇️ Exportar backup (.json)</button>
+    <button class="btn-whatsapp" onclick="compartilharWhatsapp()">📲 Compartilhar backup via WhatsApp</button>
+    <button class="btn-import" onclick="document.getElementById('import-file').click()">⬆️ Importar backup</button>
+    <input type="file" id="import-file" class="file-input-hidden" accept="application/json" onchange="importarBackup(event)">
   </div>
 
   <div class="config-card">
     <h3>⚠️ Zona de perigo</h3>
     <button class="btn-danger" onclick="limparMes()">Limpar lançamentos do mês atual</button>
-    <button class="btn-gray" onclick="limparTudo()">Apagar todos os dados locais</button>
+    <button class="btn-gray" onclick="limparTudo()">Apagar TODOS os dados (irreversível)</button>
   </div>
 </div>
 
@@ -538,7 +679,13 @@
     <span class="nav-icon">📊</span>Dashboard
   </div>
   <div class="nav-item" onclick="goPage('lancamentos',this)" id="nav-lancamentos">
-    <span class="nav-icon">📋</span>Lançamentos
+    <span class="nav-icon">📋</span>Lançam.
+  </div>
+  <div class="nav-item" onclick="goPage('cartoes',this)" id="nav-cartoes">
+    <span class="nav-icon">💳</span>Cartões
+  </div>
+  <div class="nav-item" onclick="goPage('investimentos',this)" id="nav-investimentos">
+    <span class="nav-icon">📈</span>Invest.
   </div>
   <div class="nav-item" onclick="goPage('config',this)" id="nav-config">
     <span class="nav-icon">⚙️</span>Config
@@ -546,53 +693,38 @@
 </div>
 
 <script>
-// ===================== SUPABASE CONFIG =====================
-const SB_URL   = 'https://sayagmwiuxznmcazzftb.supabase.co';
-const SB_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNheWFnbXdpdXh6bm1jYXp6ZnRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4Njg4NDksImV4cCI6MjA5MjQ0NDg0OX0.eTPVg0c757QDvs5UBCsxCkJCNYBBEZA9A7KbQSbp9ug';
-const TB_LAN   = 'MeuGasto_lancamentos';
-const TB_CFG   = 'MeuGasto_config';
+// ===================== ARMAZENAMENTO LOCAL (localStorage) =====================
+const LS_KEYS = {
+  lancamentos: 'meugasto_lancamentos',
+  config: 'meugasto_config',
+  cartoes: 'meugasto_cartoes',
+  compras: 'meugasto_compras_cartao',
+  investimentos: 'meugasto_investimentos'
+};
 
-async function sbFetch(path, opts={}) {
-  const res = await fetch(SB_URL + '/rest/v1/' + path, {
-    ...opts,
-    headers: {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': opts.prefer || 'return=representation',
-      ...(opts.headers||{})
-    }
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err);
+function lsGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch(e) { return fallback; }
+}
+function lsSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    setSyncStatus('ok', 'salvo');
+  } catch(e) {
+    setSyncStatus('err', 'erro ao salvar');
+    toast('Erro ao salvar localmente: ' + e.message.slice(0,60), true);
   }
-  const txt = await res.text();
-  return txt ? JSON.parse(txt) : [];
 }
 
-// ===================== SYNC STATUS =====================
+// ===================== SYNC STATUS (indicador local) =====================
 function setSyncStatus(state, label) {
   const dot = document.getElementById('sync-dot');
   const lbl = document.getElementById('sync-label');
+  if(!dot || !lbl) return;
   dot.className = 'sync-dot ' + (state||'');
   lbl.textContent = label;
-}
-
-async function checkConnection() {
-  try {
-    setSyncStatus('loading', 'conectando...');
-    await sbFetch(TB_CFG + '?limit=1', { method: 'GET', prefer: '' });
-    setSyncStatus('ok', 'online');
-    document.getElementById('supa-info').innerHTML =
-      '<strong>Conectado ✅</strong><br>Tabelas: <code>' + TB_LAN + '</code> e <code>' + TB_CFG + '</code>';
-    return true;
-  } catch(e) {
-    setSyncStatus('err', 'offline');
-    document.getElementById('supa-info').innerHTML =
-      '<strong>Erro de conexão ❌</strong><br>Verifique se as tabelas existem no Supabase.<br><small>' + e.message.slice(0,120) + '</small>';
-    return false;
-  }
 }
 
 // ===================== DADOS LOCAIS =====================
@@ -613,15 +745,28 @@ const CAT_COLORS = {
   saude:'#fd9644', lazer:'#a55eea', transporte:'#4bcffa',
   casa:'#fd79a8', roupas:'#fdcb6e', educacao:'#6c5ce7', outros:'#b2bec3'
 };
+const INV_TIPOS = {
+  cdb: { emoji:'🏦', nome:'CDB' },
+  tesouro: { emoji:'📜', nome:'Tesouro Direto' },
+  acoes: { emoji:'📈', nome:'Ações' },
+  fii: { emoji:'🏢', nome:'Fundos Imobiliários' },
+  poupanca: { emoji:'🐷', nome:'Poupança' },
+  cripto: { emoji:'₿', nome:'Criptomoedas' },
+  outros: { emoji:'💼', nome:'Outros' },
+};
 
 let _lancamentos = [];
 // _config.plans = [{ id, emoji, nome, cat, limite }]
-let _config = { plans: [], _dbId: null };
+let _config = { plans: [] };
+let _cartoes = []; // { id, emoji, nome, limite, venc }
+let _compras = [];  // { id, cartaoId, valor, desc, data }
+let _investimentos = []; // { id, tipo, nome, valor, data }
 let currentMonth;
 let selectedCat = '';
 let editingId = null;
 let editingCat = '';
 let lanFilterCat = ''; // filtro aba lançamentos
+let selectedCartaoId = '';
 
 function fmt(v) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -630,78 +775,24 @@ function fmtShort(v) {
   if(v >= 1000) return 'R$' + (v/1000).toFixed(1) + 'k';
   return 'R$' + Number(v).toFixed(0);
 }
+function uid() { return 'id' + Date.now() + Math.random().toString(36).slice(2,7); }
 
-// ===================== SUPABASE CRUD =====================
-async function loadFromSupabase() {
-  showLoading('Carregando dados...');
-  try {
-    const lans = await sbFetch(TB_LAN + '?order=data.desc', { method: 'GET', prefer: '' });
-    _lancamentos = lans.map(r => ({
-      id: r.id,
-      valor: parseFloat(r.valor),
-      desc: r.descricao || '',
-      cat: r.categoria,
-      data: r.data
-    }));
-    const cfgs = await sbFetch(TB_CFG + '?limit=1', { method: 'GET', prefer: '' });
-    if(cfgs.length > 0) {
-      const raw = cfgs[0];
-      _config._dbId = raw.id;
-      // Suporte legado (food/fuel) + novo campo plans
-      let plans = [];
-      if(raw.plans) {
-        try { plans = JSON.parse(raw.plans); } catch(e) {}
-      }
-      // Migrar legado
-      if(plans.length === 0) {
-        if(raw.orcamento_alimentacao > 0) plans.push({ id:'p1', emoji:'🍽️', nome:'Alimentação', cat:'alimentacao', limite: parseFloat(raw.orcamento_alimentacao)||0 });
-        if(raw.orcamento_combustivel > 0) plans.push({ id:'p2', emoji:'⛽', nome:'Combustível', cat:'combustivel', limite: parseFloat(raw.orcamento_combustivel)||0 });
-      }
-      _config.plans = plans;
-    }
-    setSyncStatus('ok', 'online');
-  } catch(e) {
-    setSyncStatus('err', 'offline');
-    toast('⚠️ Erro ao carregar dados: ' + e.message.slice(0,50), true);
-  }
-  hideLoading();
+// ===================== CARREGAR TUDO DO LOCALSTORAGE =====================
+function loadAllFromLocal() {
+  _lancamentos = lsGet(LS_KEYS.lancamentos, []);
+  _config = lsGet(LS_KEYS.config, { plans: [] });
+  if(!_config.plans) _config.plans = [];
+  _cartoes = lsGet(LS_KEYS.cartoes, []);
+  _compras = lsGet(LS_KEYS.compras, []);
+  _investimentos = lsGet(LS_KEYS.investimentos, []);
+  setSyncStatus('ok', 'salvo');
 }
 
-async function insertLancamento(lan) {
-  const row = { valor: lan.valor, descricao: lan.desc, categoria: lan.cat, data: lan.data };
-  const result = await sbFetch(TB_LAN, { method: 'POST', body: JSON.stringify(row), prefer: 'return=representation' });
-  return result[0];
-}
-
-async function updateLancamento(id, lan) {
-  const row = { valor: lan.valor, descricao: lan.desc, categoria: lan.cat, data: lan.data };
-  await sbFetch(TB_LAN + '?id=eq.' + id, { method: 'PATCH', body: JSON.stringify(row), prefer: '' });
-}
-
-async function deleteLancamento(id) {
-  await sbFetch(TB_LAN + '?id=eq.' + id, { method: 'DELETE', prefer: '' });
-}
-
-async function upsertConfig() {
-  const plansJson = JSON.stringify(_config.plans);
-  // Manter compatibilidade com campo legado
-  const food = _config.plans.find(p=>p.cat==='alimentacao')?.limite || 0;
-  const fuel = _config.plans.find(p=>p.cat==='combustivel')?.limite || 0;
-  const body = { orcamento_alimentacao: food, orcamento_combustivel: fuel, plans: plansJson };
-  if(_config._dbId) {
-    await sbFetch(TB_CFG + '?id=eq.' + _config._dbId, { method: 'PATCH', body: JSON.stringify(body), prefer: '' });
-  } else {
-    const result = await sbFetch(TB_CFG, { method: 'POST', body: JSON.stringify(body), prefer: 'return=representation' });
-    if(result[0]) _config._dbId = result[0].id;
-  }
-}
-
-async function syncNow() {
-  await loadFromSupabase();
-  renderDashboard();
-  renderAllTx();
-  toast('✅ Sincronizado!');
-}
+function salvarLancamentosLS() { lsSet(LS_KEYS.lancamentos, _lancamentos); }
+function salvarConfigLS() { lsSet(LS_KEYS.config, _config); }
+function salvarCartoesLS() { lsSet(LS_KEYS.cartoes, _cartoes); }
+function salvarComprasLS() { lsSet(LS_KEYS.compras, _compras); }
+function salvarInvestimentosLS() { lsSet(LS_KEYS.investimentos, _investimentos); }
 
 // ===================== MONTH NAV =====================
 function initMonth() {
@@ -720,6 +811,7 @@ function renderMonth() {
   document.getElementById('month-label').textContent = names[m-1]+'/'+y;
   renderDashboard();
   renderAllTx();
+  renderCartoesPage();
 }
 
 // ===================== PAGES =====================
@@ -733,6 +825,8 @@ function goPage(id, el) {
   if(id==='lancamentos') renderAllTx();
   if(id==='config') loadConfigUI();
   if(id==='lancar') initForm();
+  if(id==='cartoes') renderCartoesPage();
+  if(id==='investimentos') renderInvestimentosPage();
 }
 
 // ===================== DASHBOARD =====================
@@ -808,8 +902,6 @@ function renderDashboard() {
   }
 }
 
-
-
 function renderCatList(catArr, total) {
   const catContainer = document.getElementById('dash-cats');
   const filtered = catArr;
@@ -857,10 +949,8 @@ function renderAllTx() {
   const lans = lanFilterCat ? allLans.filter(l=>l.cat===lanFilterCat) : allLans;
   const container = document.getElementById('all-tx-list');
 
-  // Renderiza dropdown de filtro
   renderLanFilterList(allLans);
 
-  // Contador
   const countEl = document.getElementById('lan-count');
   if(countEl) {
     countEl.textContent = lans.length + ' lançamento' + (lans.length!==1?'s':'') +
@@ -912,7 +1002,6 @@ function setLanFilter(catId) {
   renderAllTx();
 }
 
-// Fechar dropdown lançamentos ao clicar fora
 document.addEventListener('click', function(e) {
   const wrap = document.getElementById('lan-filter-btn')?.closest('.filter-dropdown-wrap');
   if(wrap && !wrap.contains(e.target)) {
@@ -921,19 +1010,13 @@ document.addEventListener('click', function(e) {
   }
 });
 
-async function deletar(id) {
+function deletar(id) {
   if(!confirm('Remover este lançamento?')) return;
-  showLoading('Removendo...');
-  try {
-    await deleteLancamento(id);
-    _lancamentos = _lancamentos.filter(l=>l.id!==id);
-    renderAllTx();
-    renderDashboard();
-    toast('Lançamento removido');
-  } catch(e) {
-    toast('Erro ao remover: '+e.message.slice(0,50), true);
-  }
-  hideLoading();
+  _lancamentos = _lancamentos.filter(l=>l.id!==id);
+  salvarLancamentosLS();
+  renderAllTx();
+  renderDashboard();
+  toast('Lançamento removido');
 }
 
 // ===================== EDITAR =====================
@@ -970,7 +1053,7 @@ function closeEditModalForce() {
   editingCat = '';
 }
 
-async function salvarEdicao() {
+function salvarEdicao() {
   if(!editingId) return;
   const valor = parseFloat(document.getElementById('edit-valor').value);
   const desc  = document.getElementById('edit-desc').value.trim();
@@ -978,19 +1061,13 @@ async function salvarEdicao() {
   if(!valor || valor<=0) { toast('Informe o valor!', true); return; }
   if(!editingCat) { toast('Selecione uma categoria!', true); return; }
   if(!data_) { toast('Informe a data!', true); return; }
-  showLoading('Atualizando...');
-  try {
-    await updateLancamento(editingId, { valor, desc, cat: editingCat, data: data_ });
-    const idx = _lancamentos.findIndex(l=>l.id===editingId);
-    if(idx !== -1) _lancamentos[idx] = { id: editingId, valor, desc, cat: editingCat, data: data_ };
-    closeEditModalForce();
-    renderAllTx();
-    renderDashboard();
-    toast('✅ Lançamento atualizado!');
-  } catch(e) {
-    toast('Erro ao atualizar: '+e.message.slice(0,60), true);
-  }
-  hideLoading();
+  const idx = _lancamentos.findIndex(l=>l.id===editingId);
+  if(idx !== -1) _lancamentos[idx] = { id: editingId, valor, desc, cat: editingCat, data: data_ };
+  salvarLancamentosLS();
+  closeEditModalForce();
+  renderAllTx();
+  renderDashboard();
+  toast('✅ Lançamento atualizado!');
 }
 
 // ===================== FORM NOVO =====================
@@ -1013,7 +1090,7 @@ function selectCat(id) {
   });
 }
 
-async function salvarLancamento() {
+function salvarLancamento() {
   const valor = parseFloat(document.getElementById('f-valor').value);
   const desc  = document.getElementById('f-desc').value.trim();
   const data_ = document.getElementById('f-data').value;
@@ -1022,28 +1099,209 @@ async function salvarLancamento() {
   if(!data_)             { toast('Informe a data!', true); return; }
   const btn = document.getElementById('btn-salvar');
   btn.disabled = true;
-  showLoading('Salvando...');
-  try {
-    const lan = { valor, desc, cat: selectedCat, data: data_ };
-    const saved = await insertLancamento(lan);
-    _lancamentos.unshift({ ...lan, id: saved.id });
-    document.getElementById('f-valor').value = '';
-    document.getElementById('f-desc').value = '';
-    selectedCat = '';
-    initForm();
-    toast('✅ Lançamento salvo!');
-  } catch(e) {
-    toast('Erro ao salvar: '+e.message.slice(0,60), true);
-  }
+  const lan = { id: uid(), valor, desc, cat: selectedCat, data: data_ };
+  _lancamentos.unshift(lan);
+  salvarLancamentosLS();
+  document.getElementById('f-valor').value = '';
+  document.getElementById('f-desc').value = '';
+  selectedCat = '';
+  initForm();
+  toast('✅ Lançamento salvo!');
   btn.disabled = false;
-  hideLoading();
+}
+
+// ===================== CARTÕES DE CRÉDITO =====================
+function toggleAddCartao() {
+  const form = document.getElementById('add-cartao-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function adicionarCartao() {
+  const emoji = document.getElementById('new-cartao-emoji').value.trim() || '💳';
+  const nome  = document.getElementById('new-cartao-nome').value.trim();
+  const limite = parseFloat(document.getElementById('new-cartao-limite').value) || 0;
+  const venc = parseInt(document.getElementById('new-cartao-venc').value) || null;
+  if(!nome) { toast('Informe o nome do cartão!', true); return; }
+  _cartoes.push({ id: uid(), emoji, nome, limite, venc });
+  salvarCartoesLS();
+  document.getElementById('new-cartao-emoji').value = '';
+  document.getElementById('new-cartao-nome').value = '';
+  document.getElementById('new-cartao-limite').value = '';
+  document.getElementById('new-cartao-venc').value = '';
+  document.getElementById('add-cartao-form').style.display = 'none';
+  renderCartoesPage();
+  toast('✅ Cartão adicionado!');
+}
+
+function removerCartao(id) {
+  const c = _cartoes.find(x=>x.id===id);
+  if(!c) return;
+  if(!confirm('Remover cartão "'+c.nome+'"? As compras lançadas nele também serão removidas.')) return;
+  _cartoes = _cartoes.filter(x=>x.id!==id);
+  _compras = _compras.filter(x=>x.cartaoId!==id);
+  salvarCartoesLS();
+  salvarComprasLS();
+  if(selectedCartaoId===id) selectedCartaoId = '';
+  renderCartoesPage();
+  toast('Cartão removido');
+}
+
+function selecionarCartao(id) {
+  selectedCartaoId = id;
+  renderCartaoSelectChips();
+}
+
+function renderCartaoSelectChips() {
+  const wrap = document.getElementById('cartao-select-wrap');
+  if(!wrap) return;
+  if(_cartoes.length===0) {
+    wrap.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;">Cadastre um cartão acima para lançar compras.</div>';
+    return;
+  }
+  if(!selectedCartaoId) selectedCartaoId = _cartoes[0].id;
+  wrap.innerHTML = _cartoes.map(c=>`
+    <div class="card-chip ${selectedCartaoId===c.id?'selected':''}" onclick="selecionarCartao('${c.id}')">${c.emoji} ${c.nome}</div>
+  `).join('');
+}
+
+function getComprasCartao(cartaoId, month) {
+  return _compras.filter(c=>c.cartaoId===cartaoId && c.data.startsWith(month));
+}
+
+function renderCartoesPage() {
+  const listEl = document.getElementById('cartoes-list');
+  if(!listEl) return;
+  if(_cartoes.length===0) {
+    listEl.innerHTML = '<div style="color:var(--text2);font-size:0.82rem;text-align:center;padding:8px 0;">Nenhum cartão cadastrado</div>';
+  } else {
+    listEl.innerHTML = _cartoes.map(c=>{
+      const fatura = getComprasCartao(c.id, currentMonth).reduce((s,x)=>s+x.valor,0);
+      return `<div class="card-item">
+        <div class="card-item-top">
+          <div class="card-item-icon">${c.emoji}</div>
+          <div class="card-item-name">${c.nome}</div>
+          <button class="card-item-del" onclick="removerCartao('${c.id}')">🗑</button>
+        </div>
+        <div class="card-item-vals">
+          <span class="card-item-fatura">${fmt(fatura)}</span>
+          <span class="card-item-limite">${c.limite>0?'/ limite '+fmt(c.limite):''}</span>
+        </div>
+        <div class="card-item-meta">Fatura de ${document.getElementById('month-label').textContent}${c.venc?' · vencimento dia '+c.venc:''}</div>
+      </div>`;
+    }).join('');
+  }
+  renderCartaoSelectChips();
+
+  const today = new Date();
+  const iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const dataInput = document.getElementById('fc-data');
+  if(dataInput && !dataInput.value) dataInput.value = iso;
+
+  const comprasList = document.getElementById('cartoes-compras-list');
+  const todasCompras = _compras.filter(c=>c.data.startsWith(currentMonth)).sort((a,b)=>b.data.localeCompare(a.data));
+  if(todasCompras.length===0) {
+    comprasList.innerHTML = '<div class="empty-state"><div class="ei">💳</div>Nenhuma compra lançada este mês</div>';
+  } else {
+    comprasList.innerHTML = todasCompras.map(compraHtml).join('');
+  }
+}
+
+function compraHtml(c) {
+  const cartao = _cartoes.find(x=>x.id===c.cartaoId) || {emoji:'💳', nome:'Cartão'};
+  const [y,m,d] = c.data.split('-');
+  return `<div class="tx-item">
+    <div class="tx-icon" style="background:rgba(108,99,255,.15)">${cartao.emoji}</div>
+    <div class="tx-info">
+      <div class="tx-desc">${c.desc||cartao.nome}</div>
+      <div class="tx-meta">${d}/${m} · ${cartao.nome}</div>
+    </div>
+    <div class="tx-amount">- ${fmt(c.valor)}</div>
+    <div class="tx-actions">
+      <button class="tx-del" onclick="deletarCompraCartao('${c.id}')" title="Excluir">🗑</button>
+    </div>
+  </div>`;
+}
+
+function salvarCompraCartao() {
+  if(!selectedCartaoId) { toast('Cadastre e selecione um cartão!', true); return; }
+  const valor = parseFloat(document.getElementById('fc-valor').value);
+  const desc  = document.getElementById('fc-desc').value.trim();
+  const data_ = document.getElementById('fc-data').value;
+  if(!valor || valor<=0) { toast('Informe o valor!', true); return; }
+  if(!data_) { toast('Informe a data!', true); return; }
+  _compras.unshift({ id: uid(), cartaoId: selectedCartaoId, valor, desc, data: data_ });
+  salvarComprasLS();
+  document.getElementById('fc-valor').value = '';
+  document.getElementById('fc-desc').value = '';
+  renderCartoesPage();
+  toast('✅ Compra lançada!');
+}
+
+function deletarCompraCartao(id) {
+  if(!confirm('Remover esta compra?')) return;
+  _compras = _compras.filter(c=>c.id!==id);
+  salvarComprasLS();
+  renderCartoesPage();
+  toast('Compra removida');
+}
+
+// ===================== INVESTIMENTOS =====================
+function renderInvestimentosPage() {
+  const total = _investimentos.reduce((s,i)=>s+i.valor,0);
+  document.getElementById('inv-total').textContent = fmt(total);
+  const today = new Date();
+  const iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const dataInput = document.getElementById('fi-data');
+  if(dataInput && !dataInput.value) dataInput.value = iso;
+
+  const list = document.getElementById('inv-list');
+  const ordenados = [..._investimentos].sort((a,b)=>b.data.localeCompare(a.data));
+  if(ordenados.length===0) {
+    list.innerHTML = '<div class="empty-state"><div class="ei">📈</div>Nenhum investimento cadastrado ainda</div>';
+    return;
+  }
+  list.innerHTML = ordenados.map(i=>{
+    const tipo = INV_TIPOS[i.tipo] || {emoji:'💼', nome:i.tipo};
+    const [y,m,d] = i.data.split('-');
+    return `<div class="inv-item">
+      <div class="inv-item-icon">${tipo.emoji}</div>
+      <div class="inv-item-info">
+        <div class="inv-item-name">${i.nome||tipo.nome}</div>
+        <div class="inv-item-meta">${tipo.nome} · aplicado em ${d}/${m}/${y}</div>
+      </div>
+      <div class="inv-item-val">${fmt(i.valor)}</div>
+      <button class="inv-item-del" onclick="removerInvestimento('${i.id}')">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+function salvarInvestimento() {
+  const tipo = document.getElementById('fi-tipo').value;
+  const nome = document.getElementById('fi-nome').value.trim();
+  const valor = parseFloat(document.getElementById('fi-valor').value);
+  const data_ = document.getElementById('fi-data').value;
+  if(!valor || valor<=0) { toast('Informe o valor investido!', true); return; }
+  if(!data_) { toast('Informe a data da aplicação!', true); return; }
+  _investimentos.unshift({ id: uid(), tipo, nome, valor, data: data_ });
+  salvarInvestimentosLS();
+  document.getElementById('fi-nome').value = '';
+  document.getElementById('fi-valor').value = '';
+  renderInvestimentosPage();
+  toast('✅ Investimento salvo!');
+}
+
+function removerInvestimento(id) {
+  if(!confirm('Remover este investimento?')) return;
+  _investimentos = _investimentos.filter(i=>i.id!==id);
+  salvarInvestimentosLS();
+  renderInvestimentosPage();
+  toast('Investimento removido');
 }
 
 // ===================== CONFIG / PLANEJAMENTOS =====================
 function loadConfigUI() {
   renderPlanList();
   populatePlanCatSelect();
-  checkConnection();
 }
 
 function renderPlanList() {
@@ -1100,44 +1358,145 @@ function removerPlan(idx) {
   toast('Removido — clique em Salvar para confirmar');
 }
 
-async function salvarPlans() {
-  showLoading('Salvando planejamentos...');
-  try {
-    await upsertConfig();
-    toast('✅ Planejamentos salvos!');
-    renderDashboard();
-  } catch(e) {
-    toast('Erro ao salvar: '+e.message.slice(0,50), true);
-  }
-  hideLoading();
+function salvarPlans() {
+  salvarConfigLS();
+  toast('✅ Planejamentos salvos!');
+  renderDashboard();
 }
 
-async function limparMes() {
+function limparMes() {
   if(!confirm('Apagar todos os lançamentos de '+currentMonth+'?')) return;
-  showLoading('Removendo...');
-  try {
-    const ids = getLancamentos(currentMonth).map(l=>l.id);
-    for(const id of ids) await deleteLancamento(id);
-    _lancamentos = _lancamentos.filter(l=>!l.data.startsWith(currentMonth));
-    renderDashboard();
-    renderAllTx();
-    toast('Mês limpo');
-  } catch(e) {
-    toast('Erro: '+e.message.slice(0,50), true);
-  }
-  hideLoading();
+  _lancamentos = _lancamentos.filter(l=>!l.data.startsWith(currentMonth));
+  salvarLancamentosLS();
+  renderDashboard();
+  renderAllTx();
+  toast('Mês limpo');
 }
 
 function limparTudo() {
-  if(!confirm('Isso apaga apenas o cache local. Os dados no Supabase permanecem. Continuar?')) return;
+  if(!confirm('Isso apaga PERMANENTEMENTE todos os dados salvos neste dispositivo (lançamentos, planejamentos, cartões e investimentos). Recomendamos exportar um backup antes. Continuar?')) return;
+  if(!confirm('Tem certeza mesmo? Essa ação não pode ser desfeita.')) return;
+  localStorage.removeItem(LS_KEYS.lancamentos);
+  localStorage.removeItem(LS_KEYS.config);
+  localStorage.removeItem(LS_KEYS.cartoes);
+  localStorage.removeItem(LS_KEYS.compras);
+  localStorage.removeItem(LS_KEYS.investimentos);
   _lancamentos = [];
-  _config = { plans: [], _dbId: null };
+  _config = { plans: [] };
+  _cartoes = [];
+  _compras = [];
+  _investimentos = [];
   renderDashboard();
   renderAllTx();
-  toast('Cache local limpo');
+  renderCartoesPage();
+  renderInvestimentosPage();
+  toast('Todos os dados foram apagados');
 }
 
-// ===================== LOADING =====================
+// ===================== BACKUP: EXPORTAR / IMPORTAR / WHATSAPP =====================
+function montarBackupObj() {
+  return {
+    app: 'MeuGasto',
+    versao: 1,
+    exportadoEm: new Date().toISOString(),
+    lancamentos: _lancamentos,
+    config: _config,
+    cartoes: _cartoes,
+    compras: _compras,
+    investimentos: _investimentos
+  };
+}
+
+function nomeArquivoBackup() {
+  const d = new Date();
+  const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return 'meugasto-backup-'+iso+'.json';
+}
+
+function exportarBackup() {
+  try {
+    const dados = montarBackupObj();
+    const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivoBackup();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ Backup exportado!');
+  } catch(e) {
+    toast('Erro ao exportar: '+e.message.slice(0,60), true);
+  }
+}
+
+async function compartilharWhatsapp() {
+  try {
+    const dados = montarBackupObj();
+    const json = JSON.stringify(dados, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const file = new File([blob], nomeArquivoBackup(), { type: 'application/json' });
+
+    // Tenta usar o Web Share API nativo (mobile) para compartilhar o arquivo diretamente,
+    // permitindo escolher o WhatsApp na folha de compartilhamento do celular.
+    if(navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Backup MeuGasto',
+        text: 'Backup dos meus gastos (MeuGasto) — ' + new Date().toLocaleDateString('pt-BR')
+      });
+      toast('✅ Backup enviado para compartilhamento!');
+      return;
+    }
+
+    // Fallback: navegadores desktop não permitem enviar arquivo direto pro WhatsApp Web.
+    // Baixa o arquivo e abre o WhatsApp com uma mensagem de texto explicando para anexar o arquivo.
+    exportarBackup();
+    const msg = encodeURIComponent('📊 Backup do MeuGasto (' + new Date().toLocaleDateString('pt-BR') + '). O arquivo ' + nomeArquivoBackup() + ' acabou de ser baixado — anexe-o aqui no WhatsApp.');
+    window.open('https://wa.me/?text=' + msg, '_blank');
+    toast('Arquivo baixado — anexe-o na conversa do WhatsApp que abriu');
+  } catch(e) {
+    if(e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+    toast('Erro ao compartilhar: '+e.message.slice(0,60), true);
+  }
+}
+
+function importarBackup(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const dados = JSON.parse(e.target.result);
+      if(!dados || typeof dados !== 'object') throw new Error('Arquivo inválido');
+      if(!confirm('Importar este backup vai SUBSTITUIR todos os dados atuais neste dispositivo. Continuar?')) return;
+      _lancamentos = Array.isArray(dados.lancamentos) ? dados.lancamentos : [];
+      _config = dados.config && typeof dados.config === 'object' ? dados.config : { plans: [] };
+      if(!_config.plans) _config.plans = [];
+      _cartoes = Array.isArray(dados.cartoes) ? dados.cartoes : [];
+      _compras = Array.isArray(dados.compras) ? dados.compras : [];
+      _investimentos = Array.isArray(dados.investimentos) ? dados.investimentos : [];
+      salvarLancamentosLS();
+      salvarConfigLS();
+      salvarCartoesLS();
+      salvarComprasLS();
+      salvarInvestimentosLS();
+      renderDashboard();
+      renderAllTx();
+      renderCartoesPage();
+      renderInvestimentosPage();
+      loadConfigUI();
+      toast('✅ Backup importado com sucesso!');
+    } catch(err) {
+      toast('Erro ao importar backup: ' + err.message.slice(0,60), true);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ===================== LOADING (mantido para compatibilidade visual) =====================
 function showLoading(msg) {
   document.getElementById('loading-msg').textContent = msg||'Carregando...';
   document.getElementById('loading').classList.add('show');
@@ -1154,14 +1513,14 @@ function toast(msg, isErr=false) {
 }
 
 // ===================== INIT =====================
+loadAllFromLocal();
 initMonth();
 renderMonth();
 initForm();
-
-loadFromSupabase().then(()=>{
-  renderDashboard();
-  renderAllTx();
-});
+renderDashboard();
+renderAllTx();
+renderCartoesPage();
+renderInvestimentosPage();
 </script>
 </body>
 </html>
