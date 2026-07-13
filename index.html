@@ -833,8 +833,40 @@ async function ativarLicenca() {
 function checarLicencaAoAbrir() {
   if(licencaJaAtiva()) {
     esconderGateLicenca();
+    revalidarLicencaEmBackground();
   } else {
     document.getElementById('license-input')?.focus();
+  }
+}
+
+// Revalida a licença com o Supabase toda vez que o app abre (sem travar a tela
+// enquanto verifica). Se o código tiver sido apagado ou desativado no banco,
+// o app volta a pedir a licença.
+async function revalidarLicencaEmBackground() {
+  const codigo = localStorage.getItem('meugasto_licenca_codigo');
+  if(!codigo) return;
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/rpc/validar_licenca', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_codigo: codigo, p_dispositivo: getDeviceId() })
+    });
+    if(!res.ok) return; // sem internet ou erro de rede: não bloqueia o app, tenta de novo na próxima abertura
+    const valido = await res.json();
+    if(valido !== true) {
+      localStorage.removeItem('meugasto_licenca_ok');
+      localStorage.removeItem('meugasto_licenca_codigo');
+      const gate = document.getElementById('license-gate');
+      if(gate) gate.style.display = 'flex';
+      const msg = document.getElementById('license-msg');
+      if(msg) msg.textContent = 'Sua licença foi desativada. Insira um código válido para continuar.';
+    }
+  } catch(e) {
+    // sem internet: mantém o app liberado normalmente, revalida na próxima vez
   }
 }
 
@@ -1845,22 +1877,22 @@ function exportarPDFMes() {
     <div class="section-title">Lançamentos (${lans.length})</div>
     <table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th style="text-align:right;">Valor</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="footer">Gerado pelo MeuGasto em ${new Date().toLocaleString('pt-BR')}</div>
+    <script>
+      window.onload = function() {
+        setTimeout(function() {
+          window.print();
+        }, 250);
+      };
+      window.onafterprint = function() { window.close(); };
+    <\/script>
   </body></html>`;
 
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0'; iframe.style.bottom = '0';
-  iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow.document;
-  doc.open(); doc.write(html); doc.close();
-
+  const win = window.open('', '_blank');
+  if(!win) { toast('Não foi possível abrir a tela de impressão. Verifique se pop-ups estão bloqueados.', true); return; }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
   toast('📄 Abrindo tela de impressão — escolha "Salvar como PDF"');
-  setTimeout(() => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    setTimeout(() => { if(iframe.parentNode) document.body.removeChild(iframe); }, 1500);
-  }, 350);
 }
 
 function exportarBackup() {
