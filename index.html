@@ -1695,14 +1695,14 @@ function exportarBackup() {
 }
 
 async function compartilharWhatsapp() {
+  const dados = montarBackupObj();
+  const json = JSON.stringify(dados, null, 2);
+
+  // Tenta usar o Web Share API nativo (mobile) para compartilhar o arquivo diretamente,
+  // permitindo escolher o WhatsApp na folha de compartilhamento do celular.
   try {
-    const dados = montarBackupObj();
-    const json = JSON.stringify(dados, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const file = new File([blob], nomeArquivoBackup(), { type: 'application/json' });
-
-    // Tenta usar o Web Share API nativo (mobile) para compartilhar o arquivo diretamente,
-    // permitindo escolher o WhatsApp na folha de compartilhamento do celular.
     if(navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({
         files: [file],
@@ -1712,16 +1712,19 @@ async function compartilharWhatsapp() {
       toast('✅ Backup enviado para compartilhamento!');
       return;
     }
+  } catch(e) {
+    if(e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+    // Qualquer outro erro (ex: "Permission denied" em desktop/webview) cai no fallback abaixo
+  }
 
-    // Fallback: navegadores desktop não permitem enviar arquivo direto pro WhatsApp Web.
-    // Baixa o arquivo e abre o WhatsApp com uma mensagem de texto explicando para anexar o arquivo.
+  // Fallback: baixa o arquivo e abre o WhatsApp com uma mensagem de texto explicando para anexar o arquivo.
+  try {
     exportarBackup();
     const msg = encodeURIComponent('📊 Backup do MeuGasto (' + new Date().toLocaleDateString('pt-BR') + '). O arquivo ' + nomeArquivoBackup() + ' acabou de ser baixado — anexe-o aqui no WhatsApp.');
     window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
     toast('Arquivo baixado — anexe-o na conversa do WhatsApp que abriu');
-  } catch(e) {
-    if(e.name === 'AbortError') return; // usuário cancelou o compartilhamento
-    toast('Erro ao compartilhar: '+e.message.slice(0,60), true);
+  } catch(e2) {
+    toast('Erro ao compartilhar: '+e2.message.slice(0,60), true);
   }
 }
 
