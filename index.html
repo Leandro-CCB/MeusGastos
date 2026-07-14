@@ -27,6 +27,20 @@
     --font: 'Segoe UI', system-ui, sans-serif;
   }
 
+  html[data-theme="light"] {
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface2: #eef0f7;
+    --border: #e0e2ec;
+    --accent: #6c63ff;
+    --accent2: #00b894;
+    --warn: #e74c3c;
+    --food: #e2a218;
+    --fuel: #2f8fd6;
+    --text: #1a1d27;
+    --text2: #6b6f85;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -504,7 +518,7 @@
 </div>
 
 <div class="header">
-  <h1>Meu<span>Gasto</span></h1>
+  <h1>Meu<span>Gasto</span> <button id="theme-toggle" onclick="toggleTheme()" title="Alternar tema" style="background:none;border:none;cursor:pointer;font-size:1.1rem;vertical-align:middle;line-height:1;padding:2px 4px;">🌙</button></h1>
   <div class="header-right">
     <div class="sync-status">
       <div class="sync-dot ok" id="sync-dot"></div>
@@ -792,6 +806,23 @@
 </div>
 
 <script>
+// ===================== TEMA (claro/escuro) =====================
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+}
+(function initTheme(){
+  const saved = localStorage.getItem('meugasto_theme') || 'dark';
+  applyTheme(saved);
+})();
+function toggleTheme() {
+  const atual = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const novo = atual === 'light' ? 'dark' : 'light';
+  localStorage.setItem('meugasto_theme', novo);
+  applyTheme(novo);
+}
+
 // ===================== PWA: SERVICE WORKER =====================
 if('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
