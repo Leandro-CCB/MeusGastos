@@ -453,18 +453,20 @@
   .loading-overlay p { color: var(--text2); font-size: 0.85rem; }
 
   /* ===== Relatório de impressão/PDF ===== */
-  #print-report { display:none; }
+  #print-report { display:none; color:#1a1d27; background:#fff; }
+  #print-report * { color:#1a1d27 !important; }
   #print-report .header{display:flex;align-items:center;gap:14px;border-bottom:2px solid #6c63ff;padding-bottom:14px;margin-bottom:20px;}
   #print-report .header img{height:50px;object-fit:contain;}
   #print-report h1{font-size:1.25rem;margin:0;}
-  #print-report h2{font-size:0.95rem;color:#555;margin:2px 0 0;font-weight:normal;}
+  #print-report h2{font-size:0.95rem;color:#555 !important;margin:2px 0 0;font-weight:normal;}
   #print-report .total-box{background:#f4f3ff;border:1px solid #6c63ff;border-radius:8px;padding:14px 18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;}
-  #print-report .total-box .val{font-size:1.35rem;font-weight:bold;color:#6c63ff;}
+  #print-report .total-box span{color:#1a1d27 !important;}
+  #print-report .total-box .val{font-size:1.35rem;font-weight:bold;color:#6c63ff !important;}
   #print-report table{width:100%;border-collapse:collapse;margin-bottom:26px;font-size:0.82rem;}
-  #print-report th{text-align:left;background:#f0f0f5;padding:8px;border-bottom:2px solid #ddd;}
-  #print-report td{padding:6px 8px;border-bottom:1px solid #eee;}
-  #print-report .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333;}
-  #print-report .footer{margin-top:24px;font-size:0.7rem;color:#999;text-align:center;}
+  #print-report th{text-align:left;background:#f0f0f5;padding:8px;border-bottom:2px solid #ddd;color:#1a1d27 !important;}
+  #print-report td{padding:6px 8px;border-bottom:1px solid #eee;color:#1a1d27 !important;}
+  #print-report .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333 !important;}
+  #print-report .footer{margin-top:24px;font-size:0.7rem;color:#999 !important;text-align:center;}
   @media print {
     body { display:none !important; }
   }
