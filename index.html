@@ -466,8 +466,9 @@
   #print-report .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333;}
   #print-report .footer{margin-top:24px;font-size:0.7rem;color:#999;text-align:center;}
   @media print {
+    html, body { max-width:none !important; overflow:visible !important; height:auto !important; }
     body > *:not(#print-report) { display:none !important; }
-    #print-report { display:block !important; padding:12px; color:#1a1d27; background:#fff; }
+    #print-report { display:block !important; width:100% !important; max-width:none !important; padding:12px; color:#1a1d27; background:#fff; }
   }
 </style>
 </head>
@@ -1885,6 +1886,9 @@ function exportarPDFMes() {
 
   const container = document.getElementById('print-report');
   container.innerHTML = html;
+  container.style.display = 'block';
+  // força o navegador a recalcular o layout antes de imprimir
+  void container.offsetHeight;
 
   function finishPrint() {
     container.style.display = 'none';
@@ -1894,7 +1898,11 @@ function exportarPDFMes() {
   window.addEventListener('afterprint', finishPrint);
 
   toast('📄 Abrindo tela de impressão — escolha "Salvar como PDF"');
-  setTimeout(function(){ window.print(); }, 150);
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      setTimeout(function(){ window.print(); }, 300);
+    });
+  });
 }
 
 function exportarBackup() {
