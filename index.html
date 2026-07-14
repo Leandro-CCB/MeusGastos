@@ -451,9 +451,29 @@
   }
   @keyframes spin { to{transform:rotate(360deg)} }
   .loading-overlay p { color: var(--text2); font-size: 0.85rem; }
+
+  /* ===== Relatório de impressão/PDF ===== */
+  #print-report { display:none; }
+  #print-report .header{display:flex;align-items:center;gap:14px;border-bottom:2px solid #6c63ff;padding-bottom:14px;margin-bottom:20px;}
+  #print-report .header img{height:50px;object-fit:contain;}
+  #print-report h1{font-size:1.25rem;margin:0;}
+  #print-report h2{font-size:0.95rem;color:#555;margin:2px 0 0;font-weight:normal;}
+  #print-report .total-box{background:#f4f3ff;border:1px solid #6c63ff;border-radius:8px;padding:14px 18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;}
+  #print-report .total-box .val{font-size:1.35rem;font-weight:bold;color:#6c63ff;}
+  #print-report table{width:100%;border-collapse:collapse;margin-bottom:26px;font-size:0.82rem;}
+  #print-report th{text-align:left;background:#f0f0f5;padding:8px;border-bottom:2px solid #ddd;}
+  #print-report td{padding:6px 8px;border-bottom:1px solid #eee;}
+  #print-report .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333;}
+  #print-report .footer{margin-top:24px;font-size:0.7rem;color:#999;text-align:center;}
+  @media print {
+    body > *:not(#print-report) { display:none !important; }
+    #print-report { display:block !important; padding:12px; color:#1a1d27; background:#fff; }
+  }
 </style>
 </head>
 <body>
+
+<div id="print-report"></div>
 
 <!-- ==================== TELA DE LICENÇA ==================== -->
 <div id="license-gate" style="position:fixed;inset:0;background:#0f1117;z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px;">
@@ -1850,23 +1870,7 @@ function exportarPDFMes() {
   }).join('');
   const mesLabel = document.getElementById('month-label').textContent;
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>MeuGasto - ${mesLabel}</title>
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;color:#1a1d27;padding:24px;}
-    .header{display:flex;align-items:center;gap:14px;border-bottom:2px solid #6c63ff;padding-bottom:14px;margin-bottom:20px;}
-    .header img{height:50px;object-fit:contain;}
-    h1{font-size:1.25rem;margin:0;}
-    h2{font-size:0.95rem;color:#555;margin:2px 0 0;font-weight:normal;}
-    .total-box{background:#f4f3ff;border:1px solid #6c63ff;border-radius:8px;padding:14px 18px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;}
-    .total-box .val{font-size:1.35rem;font-weight:bold;color:#6c63ff;}
-    table{width:100%;border-collapse:collapse;margin-bottom:26px;font-size:0.82rem;}
-    th{text-align:left;background:#f0f0f5;padding:8px;border-bottom:2px solid #ddd;}
-    td{padding:6px 8px;border-bottom:1px solid #eee;}
-    .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333;}
-    .footer{margin-top:24px;font-size:0.7rem;color:#999;text-align:center;}
-    @media print { body{padding:6px;} }
-  </style></head>
-  <body>
+  const html = `
     <div class="header">
       <img src="LMA_LOGO.png" onerror="this.style.display='none'">
       <div><h1>MeuGasto — Relatório de Gastos</h1><h2>${mesLabel}</h2></div>
@@ -1877,22 +1881,20 @@ function exportarPDFMes() {
     <div class="section-title">Lançamentos (${lans.length})</div>
     <table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th style="text-align:right;">Valor</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="footer">Gerado pelo MeuGasto em ${new Date().toLocaleString('pt-BR')}</div>
-    <script>
-      window.onload = function() {
-        setTimeout(function() {
-          window.print();
-        }, 250);
-      };
-      window.onafterprint = function() { window.close(); };
-    <\/script>
-  </body></html>`;
+  `;
 
-  const blob = new Blob([html], {type: 'text/html'});
-  const blobUrl = URL.createObjectURL(blob);
-  const win = window.open(blobUrl, '_blank');
-  if(!win) { toast('Não foi possível abrir a tela de impressão. Verifique se pop-ups estão bloqueados.', true); return; }
+  const container = document.getElementById('print-report');
+  container.innerHTML = html;
+
+  function finishPrint() {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    window.removeEventListener('afterprint', finishPrint);
+  }
+  window.addEventListener('afterprint', finishPrint);
+
   toast('📄 Abrindo tela de impressão — escolha "Salvar como PDF"');
-  setTimeout(()=>URL.revokeObjectURL(blobUrl), 30000);
+  setTimeout(function(){ window.print(); }, 150);
 }
 
 function exportarBackup() {
