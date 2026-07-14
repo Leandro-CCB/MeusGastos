@@ -466,11 +466,11 @@
   #print-report .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333;}
   #print-report .footer{margin-top:24px;font-size:0.7rem;color:#999;text-align:center;}
   @media print {
-    html, body { max-width:none !important; overflow:visible !important; height:auto !important; }
-    body > *:not(#print-report) { display:none !important; }
-    #print-report { display:block !important; width:100% !important; max-width:none !important; padding:12px; color:#1a1d27; background:#fff; }
+    body { display:none !important; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -1852,7 +1852,7 @@ function nomeArquivoBackup() {
 }
 
 // ===================== EXPORTAR PDF (via impressão do navegador) =====================
-function exportarPDFMes() {
+async function exportarPDFMes() {
   const lans = getLancamentos(currentMonth).slice().sort((a,b)=>a.data.localeCompare(b.data));
   if(lans.length===0) { toast('Nenhum lançamento neste mês para exportar', true); return; }
 
@@ -1886,23 +1886,76 @@ function exportarPDFMes() {
 
   const container = document.getElementById('print-report');
   container.innerHTML = html;
-  container.style.display = 'block';
-  // força o navegador a recalcular o layout antes de imprimir
-  void container.offsetHeight;
+  // renderiza fora da tela (não usa mais impressão do navegador)
+  container.style.cssText = 'display:block;position:fixed;top:0;left:-9999px;width:800px;background:#fff;padding:24px;';
 
-  function finishPrint() {
-    container.style.display = 'none';
+  toast('📄 Gerando PDF...');
+
+  try {
+    // pequena espera pra garantir que imagens/layout terminaram de renderizar
+    await new Promise(r => setTimeout(r, 150));
+
+    if(typeof html2canvas === 'undefined' || !window.jspdf) {
+      throw new Error('Bibliotecas de PDF não carregaram (verifique a internet)');
+    }
+
+    const canvas = await html2canvas(container, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    const imgData = canvas.toDataURL('image/png');
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    const fileName = `meugasto-${mesLabel.replace('/', '-')}.pdf`;
+    const blob = pdf.output('blob');
+
     container.innerHTML = '';
-    window.removeEventListener('afterprint', finishPrint);
-  }
-  window.addEventListener('afterprint', finishPrint);
+    container.removeAttribute('style');
 
-  toast('📄 Abrindo tela de impressão — escolha "Salvar como PDF"');
-  requestAnimationFrame(function(){
-    requestAnimationFrame(function(){
-      setTimeout(function(){ window.print(); }, 300);
-    });
-  });
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Relatório MeuGasto',
+        text: `Relatório de gastos - ${mesLabel}`
+      });
+      toast('📄 PDF pronto para compartilhar!');
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast('📄 PDF baixado!');
+    }
+  } catch (err) {
+    container.innerHTML = '';
+    container.removeAttribute('style');
+    if (err && err.name === 'AbortError') {
+      // usuário cancelou o compartilhamento, não é erro
+      return;
+    }
+    console.error(err);
+    toast('Erro ao gerar PDF: ' + (err && err.message ? err.message : 'desconhecido'), true);
+  }
 }
 
 function exportarBackup() {
