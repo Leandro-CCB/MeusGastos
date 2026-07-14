@@ -467,6 +467,12 @@
   #print-report td{padding:6px 8px;border-bottom:1px solid #eee;color:#1a1d27 !important;}
   #print-report .section-title{font-size:0.92rem;font-weight:bold;margin:16px 0 8px;color:#333 !important;}
   #print-report .footer{margin-top:24px;font-size:0.7rem;color:#999 !important;text-align:center;}
+  #print-report .highlight-box{display:flex;align-items:center;gap:14px;background:#fff7ed;border:1px solid #ffcf8f;border-radius:10px;padding:12px 16px;margin-bottom:22px;}
+  #print-report .highlight-box .hb-icon{font-size:1.4rem;}
+  #print-report .highlight-box .hb-info{flex:1;}
+  #print-report .highlight-box .hb-desc{font-weight:700;font-size:0.86rem;}
+  #print-report .highlight-box .hb-meta{font-size:0.72rem;color:#888 !important;}
+  #print-report .highlight-box .hb-val{font-weight:bold;font-size:1.05rem;color:#e67e22 !important;}
   @media print {
     body { display:none !important; }
   }
@@ -1861,16 +1867,67 @@ async function exportarPDFMes() {
   const total = lans.reduce((s,l)=>s+l.valor,0);
   const catTotals = {};
   lans.forEach(l=>{ catTotals[l.cat] = (catTotals[l.cat]||0) + l.valor; });
-  const catRows = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).map(([id,val])=>{
+  const catOrdenadas = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const maiorCatVal = catOrdenadas.length ? catOrdenadas[0][1] : 0;
+
+  const catRows = catOrdenadas.map(([id,val])=>{
     const cat = CATS.find(c=>c.id===id) || {emoji:'📦', nome:id};
     const pct = total>0 ? Math.round(val/total*100) : 0;
-    return `<tr><td>${cat.emoji} ${cat.nome}</td><td style="text-align:right;">${fmt(val)}</td><td style="text-align:right;">${pct}%</td></tr>`;
+    const barPct = maiorCatVal>0 ? Math.round(val/maiorCatVal*100) : 0;
+    return `<tr>
+      <td>${cat.emoji} ${cat.nome}</td>
+      <td style="width:34%;"><div style="background:#eee;border-radius:5px;height:8px;overflow:hidden;"><div style="width:${barPct}%;height:8px;background:#6c63ff;border-radius:5px;"></div></div></td>
+      <td style="text-align:right;">${fmt(val)}</td>
+      <td style="text-align:right;">${pct}%</td>
+    </tr>`;
   }).join('');
-  const rows = lans.map(l=>{
-    const cat = CATS.find(c=>c.id===l.cat) || {emoji:'📦', nome:l.cat};
-    const [y,m,d] = l.data.split('-');
-    return `<tr><td>${d}/${m}/${y}</td><td>${cat.emoji} ${cat.nome}</td><td>${(l.desc||'-').replace(/</g,'&lt;')}</td><td style="text-align:right;">${fmt(l.valor)}</td></tr>`;
-  }).join('');
+
+  // maior gasto individual do mês
+  const maiorLancamento = lans.reduce((max,l)=> (!max || l.valor>max.valor) ? l : max, null);
+  let maiorGastoHtml = '';
+  if(maiorLancamento) {
+    const catM = CATS.find(c=>c.id===maiorLancamento.cat) || {emoji:'📦', nome:maiorLancamento.cat};
+    const [y,m,d] = maiorLancamento.data.split('-');
+    maiorGastoHtml = `
+    <div class="section-title">Maior gasto do mês</div>
+    <div class="highlight-box">
+      <div class="hb-icon">${catM.emoji}</div>
+      <div class="hb-info">
+        <div class="hb-desc">${(maiorLancamento.desc||catM.nome).replace(/</g,'&lt;')}</div>
+        <div class="hb-meta">${catM.nome} · ${d}/${m}/${y}</div>
+      </div>
+      <div class="hb-val">${fmt(maiorLancamento.valor)}</div>
+    </div>`;
+  }
+
+  // resumo de cartões (fatura do mês)
+  let cartoesHtml = '';
+  if(_cartoes.length>0) {
+    const cartaoRows = _cartoes.map(c=>{
+      const fatura = getComprasCartao(c.id, currentMonth).reduce((s,x)=>s+x.valor,0);
+      return `<tr><td>${c.emoji} ${c.nome}</td><td style="text-align:right;">${fmt(fatura)}</td><td style="text-align:right;">${c.limite>0?fmt(c.limite):'-'}</td></tr>`;
+    }).join('');
+    cartoesHtml = `
+    <div class="section-title">Cartões — fatura do mês</div>
+    <table><thead><tr><th>Cartão</th><th style="text-align:right;">Fatura</th><th style="text-align:right;">Limite</th></tr></thead><tbody>${cartaoRows}</tbody></table>`;
+  }
+
+  // resumo de investimentos
+  let investHtml = '';
+  if(_investimentos.length>0) {
+    const totalInvestido = _investimentos.reduce((s,i)=>s+i.valor,0);
+    const porTipo = {};
+    _investimentos.forEach(i=>{ porTipo[i.tipo] = (porTipo[i.tipo]||0) + i.valor; });
+    const investRows = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).map(([tipoId,val])=>{
+      const tipo = INV_TIPOS[tipoId] || {emoji:'💼', nome:tipoId};
+      return `<tr><td>${tipo.emoji} ${tipo.nome}</td><td style="text-align:right;">${fmt(val)}</td></tr>`;
+    }).join('');
+    investHtml = `
+    <div class="section-title">Investimentos</div>
+    <div class="total-box" style="margin-bottom:12px;"><span>Total investido</span><span class="val">${fmt(totalInvestido)}</span></div>
+    <table><thead><tr><th>Tipo</th><th style="text-align:right;">Valor aplicado</th></tr></thead><tbody>${investRows}</tbody></table>`;
+  }
+
   const mesLabel = document.getElementById('month-label').textContent;
 
   const html = `
@@ -1879,10 +1936,11 @@ async function exportarPDFMes() {
       <div><h1>MeuGasto — Relatório de Gastos</h1><h2>${mesLabel}</h2></div>
     </div>
     <div class="total-box"><span>Total gasto no mês</span><span class="val">${fmt(total)}</span></div>
+    ${maiorGastoHtml}
     <div class="section-title">Resumo por categoria</div>
-    <table><thead><tr><th>Categoria</th><th style="text-align:right;">Valor</th><th style="text-align:right;">% do total</th></tr></thead><tbody>${catRows}</tbody></table>
-    <div class="section-title">Lançamentos (${lans.length})</div>
-    <table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th style="text-align:right;">Valor</th></tr></thead><tbody>${rows}</tbody></table>
+    <table><thead><tr><th>Categoria</th><th></th><th style="text-align:right;">Valor</th><th style="text-align:right;">% do total</th></tr></thead><tbody>${catRows}</tbody></table>
+    ${cartoesHtml}
+    ${investHtml}
     <div class="footer">Gerado pelo MeuGasto em ${new Date().toLocaleString('pt-BR')}</div>
   `;
 
