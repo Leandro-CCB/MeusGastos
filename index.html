@@ -777,6 +777,30 @@
   </div>
 </div>
 
+<div class="page" id="page-codigos">
+  <div class="config-card">
+    <h3>➕ Cadastrar cliente / gerar código</h3>
+    <div class="add-plan-row">
+      <input type="text" id="novo-cliente-nome" placeholder="Nome do cliente">
+    </div>
+    <div class="add-plan-row">
+      <input type="text" id="novo-cliente-codigo" placeholder="Código (deixe em branco p/ gerar)" autocapitalize="off" style="text-transform:uppercase;">
+      <button class="btn-gray" style="flex:0 0 auto;width:auto;padding:10px 12px;" onclick="gerarCodigoAutomatico()">🎲 Gerar</button>
+    </div>
+    <div class="add-plan-row">
+      <input type="text" id="novo-cliente-obs" placeholder="Observação (opcional)">
+    </div>
+    <button class="btn-save" onclick="criarCodigoCliente()" id="btn-criar-codigo">Criar código</button>
+    <div id="codigos-msg" style="margin-top:10px;text-align:center;font-size:0.8rem;min-height:16px;"></div>
+  </div>
+
+  <div class="config-card">
+    <h3>📋 Códigos cadastrados</h3>
+    <div id="codigos-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <button class="btn-gray" style="margin-top:12px;" onclick="carregarCodigos()">🔄 Atualizar lista</button>
+  </div>
+</div>
+
 <!-- NAV BOTTOM -->
 <div class="nav-bottom">
   <div class="nav-item active" onclick="goPage('lancar',this)" id="nav-lancar">
@@ -796,6 +820,9 @@
   </div>
   <div class="nav-item" onclick="goPage('config',this)" id="nav-config">
     <span class="nav-icon">⚙️</span>Config
+  </div>
+  <div class="nav-item" onclick="goPage('codigos',this)" id="nav-codigos" style="display:none;">
+    <span class="nav-icon">🔑</span>Códigos
   </div>
 </div>
 
@@ -856,6 +883,7 @@ async function ativarLicenca() {
     if(valido === true) {
       localStorage.setItem('meugasto_licenca_ok', 'true');
       localStorage.setItem('meugasto_licenca_codigo', codigo);
+      await checarEExibirAbaMaster(codigo);
       esconderGateLicenca();
     } else {
       msg.textContent = 'Código inválido, já usado em outro aparelho, ou desativado.';
@@ -870,8 +898,177 @@ async function ativarLicenca() {
 function checarLicencaAoAbrir() {
   if(licencaJaAtiva()) {
     esconderGateLicenca();
+    const codigo = localStorage.getItem('meugasto_licenca_codigo');
+    if(codigo) checarEExibirAbaMaster(codigo);
   } else {
     document.getElementById('license-input')?.focus();
+  }
+}
+
+// ===================== CÓDIGO MASTER / PAINEL DE CÓDIGOS =====================
+async function checarEExibirAbaMaster(codigo) {
+  try {
+    const res = await fetch(SB_URL + '/rest/v1/rpc/checar_master', {
+      method: 'POST',
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_codigo: codigo })
+    });
+    const isMaster = res.ok ? await res.json() : false;
+    localStorage.setItem('meugasto_is_master', isMaster === true ? 'true' : 'false');
+    const navCodigos = document.getElementById('nav-codigos');
+    if(navCodigos) navCodigos.style.display = isMaster === true ? '' : 'none';
+  } catch(e) {
+    // silencioso: se falhar, apenas não mostra a aba
+  }
+}
+
+function ehMaster() {
+  return localStorage.getItem('meugasto_is_master') === 'true';
+}
+
+function getCodigoMaster() {
+  return localStorage.getItem('meugasto_licenca_codigo') || '';
+}
+
+async function chamarRpcAdmin(nome, params) {
+  const res = await fetch(SB_URL + '/rest/v1/rpc/' + nome, {
+    method: 'POST',
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(params)
+  });
+  const data = await res.json().catch(()=>null);
+  if(!res.ok) {
+    const erro = (data && (data.message || data.hint)) || ('Erro ' + res.status);
+    throw new Error(erro);
+  }
+  return data;
+}
+
+function gerarCodigoAutomatico() {
+  const nomeInput = document.getElementById('novo-cliente-nome');
+  const codigoInput = document.getElementById('novo-cliente-codigo');
+  const nome = (nomeInput.value || 'cliente').trim();
+  const slug = nome
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 14) || 'CLIENTE';
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  codigoInput.value = slug + '-' + rand;
+}
+
+async function criarCodigoCliente() {
+  const nome = document.getElementById('novo-cliente-nome').value.trim();
+  const codigoField = document.getElementById('novo-cliente-codigo');
+  const obs = document.getElementById('novo-cliente-obs').value.trim();
+  const msg = document.getElementById('codigos-msg');
+  const btn = document.getElementById('btn-criar-codigo');
+
+  if(!nome) { msg.style.color = '#ff6b6b'; msg.textContent = 'Informe o nome do cliente.'; return; }
+  if(!codigoField.value.trim()) gerarCodigoAutomatico();
+  const codigo = codigoField.value.trim().toUpperCase();
+
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+  msg.textContent = '';
+  try {
+    await chamarRpcAdmin('admin_criar_codigo', {
+      p_master: getCodigoMaster(),
+      p_codigo: codigo,
+      p_cliente_nome: nome,
+      p_observacao: obs || null
+    });
+    msg.style.color = '#00d4aa';
+    msg.textContent = 'Código criado: ' + codigo;
+    document.getElementById('novo-cliente-nome').value = '';
+    document.getElementById('novo-cliente-codigo').value = '';
+    document.getElementById('novo-cliente-obs').value = '';
+    carregarCodigos();
+  } catch(e) {
+    msg.style.color = '#ff6b6b';
+    msg.textContent = 'Erro: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = 'Criar código';
+}
+
+async function carregarCodigos() {
+  const lista = document.getElementById('codigos-list');
+  if(!lista) return;
+  lista.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;">Carregando...</div>';
+  try {
+    const codigos = await chamarRpcAdmin('admin_listar_codigos', { p_master: getCodigoMaster() });
+    if(!codigos || codigos.length === 0) {
+      lista.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;">Nenhum código cadastrado ainda.</div>';
+      return;
+    }
+    lista.innerHTML = codigos.map(renderCodigoCard).join('');
+  } catch(e) {
+    lista.innerHTML = '<div style="color:#ff6b6b;font-size:0.8rem;">Erro ao carregar: ' + e.message + '</div>';
+  }
+}
+
+function renderCodigoCard(c) {
+  const ativo = c.ativo === true;
+  const vinculado = !!c.dispositivo_id;
+  const statusCor = ativo ? '#00d4aa' : '#ff6b6b';
+  const statusTxt = ativo ? 'Ativo' : 'Revogado';
+  return `
+  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-weight:700;font-size:0.9rem;">${escapeHtml(c.cliente_nome || '(sem nome)')}</div>
+      <div style="font-size:0.7rem;font-weight:700;color:${statusCor};">${statusTxt}</div>
+    </div>
+    <div style="font-family:monospace;font-size:0.85rem;color:var(--accent2);word-break:break-all;margin-bottom:4px;">${escapeHtml(c.codigo)}</div>
+    <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;">
+      ${vinculado ? '📱 Vinculado a um aparelho' : '⭕ Ainda não ativado em nenhum aparelho'}
+      ${c.observacao ? '<br>📝 ' + escapeHtml(c.observacao) : ''}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button onclick="copiarCodigo('${escapeAttr(c.codigo)}')" style="flex:1;min-width:80px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.72rem;cursor:pointer;">📋 Copiar</button>
+      <button onclick="alternarStatusCodigo('${escapeAttr(c.codigo)}', ${!ativo})" style="flex:1;min-width:80px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:${ativo ? '#ff6b6b' : '#00d4aa'};font-size:0.72rem;cursor:pointer;">${ativo ? '🚫 Revogar' : '✅ Reativar'}</button>
+      ${vinculado ? `<button onclick="resetarDispositivoCodigo('${escapeAttr(c.codigo)}')" style="flex:1;min-width:80px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:0.72rem;cursor:pointer;">🔓 Liberar aparelho</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/'/g, "\\'");
+}
+
+function copiarCodigo(codigo) {
+  navigator.clipboard?.writeText(codigo).then(() => toast('Código copiado!'));
+}
+
+async function alternarStatusCodigo(codigo, novoStatus) {
+  try {
+    await chamarRpcAdmin('admin_definir_status', { p_master: getCodigoMaster(), p_codigo: codigo, p_ativo: novoStatus });
+    toast(novoStatus ? 'Código reativado' : 'Código revogado');
+    carregarCodigos();
+  } catch(e) {
+    toast('Erro: ' + e.message, true);
+  }
+}
+
+async function resetarDispositivoCodigo(codigo) {
+  try {
+    await chamarRpcAdmin('admin_resetar_dispositivo', { p_master: getCodigoMaster(), p_codigo: codigo });
+    toast('Aparelho liberado, cliente já pode ativar em outro celular/PC');
+    carregarCodigos();
+  } catch(e) {
+    toast('Erro: ' + e.message, true);
   }
 }
 
@@ -1036,6 +1233,7 @@ function goPage(id, el) {
   if(id==='lancar') initForm();
   if(id==='cartoes') renderCartoesPage();
   if(id==='investimentos') renderInvestimentosPage();
+  if(id==='codigos') carregarCodigos();
 }
 
 // ===================== DASHBOARD =====================
