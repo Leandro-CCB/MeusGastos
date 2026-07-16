@@ -399,6 +399,15 @@
   .inv-item-val { font-size: 0.92rem; font-weight: 700; color: var(--accent2); white-space: nowrap; }
   .inv-item-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 0.9rem; opacity: .6; padding: 4px; }
   .inv-item-del:hover { opacity: 1; color: var(--warn); }
+  .inv-item-extra { font-size: 0.72rem; color: var(--accent2); margin-top: 2px; }
+
+  .inv-estimativa-box {
+    background: rgba(0,212,170,.1); border: 1px solid rgba(0,212,170,.35);
+    border-radius: 12px; padding: 12px 14px; margin-top: 6px; margin-bottom: 4px;
+  }
+  .inv-estimativa-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .5px; color: var(--text2); font-weight: 700; }
+  .inv-estimativa-val { font-size: 1.15rem; font-weight: 800; color: var(--accent2); margin: 3px 0; }
+  .inv-estimativa-sub { font-size: 0.72rem; color: var(--text2); }
 
   /* BACKUP */
   .backup-btn-row { display: flex; gap: 8px; margin-top: 10px; }
@@ -725,7 +734,27 @@
     </div>
     <div class="form-row">
       <label>Data da aplicação</label>
-      <input type="date" id="fi-data">
+      <input type="date" id="fi-data" oninput="atualizarEstimativaInv()">
+    </div>
+    <div class="form-row">
+      <label>Data de vencimento (se houver)</label>
+      <input type="date" id="fi-vencimento" oninput="atualizarEstimativaInv()">
+    </div>
+    <div class="form-row">
+      <label>Taxa de juros (%)</label>
+      <input type="number" id="fi-taxa" placeholder="Ex: 1.1" min="0" step="0.01" inputmode="decimal" oninput="atualizarEstimativaInv()">
+    </div>
+    <div class="form-row">
+      <label>Periodicidade da taxa</label>
+      <select id="fi-periodicidade" onchange="atualizarEstimativaInv()">
+        <option value="mensal">Mensal</option>
+        <option value="diario">Diário</option>
+      </select>
+    </div>
+    <div class="inv-estimativa-box" id="inv-estimativa-box" style="display:none;">
+      <div class="inv-estimativa-label">💰 Valor estimado no vencimento</div>
+      <div class="inv-estimativa-val" id="inv-estimativa-val">R$ 0,00</div>
+      <div class="inv-estimativa-sub" id="inv-estimativa-sub"></div>
     </div>
     <button class="btn-primary" onclick="salvarInvestimento()">Salvar investimento</button>
   </div>
@@ -1853,6 +1882,51 @@ function renderCartoesPage() {
 }
 
 // ===================== INVESTIMENTOS =====================
+
+// Calcula quantos "períodos" (dias ou meses) existem entre duas datas ISO (yyyy-mm-dd)
+function _diasEntre(dataIni, dataFim) {
+  const d1 = new Date(dataIni+'T00:00:00');
+  const d2 = new Date(dataFim+'T00:00:00');
+  return Math.round((d2 - d1) / (1000*60*60*24));
+}
+
+// Calcula o valor futuro com juros compostos.
+// taxa em % (ex: 1.1 = 1.1%), periodicidade: 'diario' ou 'mensal'
+function calcularValorEstimadoInvestimento(valor, taxa, periodicidade, dataInicio, dataVencimento) {
+  if(!valor || valor<=0 || !taxa || taxa<=0 || !dataInicio || !dataVencimento) return null;
+  const dias = _diasEntre(dataInicio, dataVencimento);
+  if(dias<=0) return null;
+  const i = taxa/100;
+  let periodos;
+  if(periodicidade==='diario') {
+    periodos = dias;
+  } else {
+    periodos = dias/30; // aproximação de meses
+  }
+  const valorFuturo = valor * Math.pow(1+i, periodos);
+  return { valorFuturo, dias, periodos };
+}
+
+// Atualiza a caixa de estimativa em tempo real no formulário
+function atualizarEstimativaInv() {
+  const valor = parseFloat(document.getElementById('fi-valor').value);
+  const taxa = parseFloat(document.getElementById('fi-taxa').value);
+  const periodicidade = document.getElementById('fi-periodicidade').value;
+  const dataInicio = document.getElementById('fi-data').value;
+  const dataVencimento = document.getElementById('fi-vencimento').value;
+  const box = document.getElementById('inv-estimativa-box');
+  const valEl = document.getElementById('inv-estimativa-val');
+  const subEl = document.getElementById('inv-estimativa-sub');
+
+  const res = calcularValorEstimadoInvestimento(valor, taxa, periodicidade, dataInicio, dataVencimento);
+  if(!res) { box.style.display = 'none'; return; }
+
+  box.style.display = 'block';
+  valEl.textContent = fmt(res.valorFuturo);
+  const rendimento = res.valorFuturo - valor;
+  subEl.textContent = `Rendimento de ${fmt(rendimento)} em ${res.dias} dia(s) (taxa ${periodicidade==='diario'?'diária':'mensal'})`;
+}
+
 function renderInvestimentosPage() {
   const total = _investimentos.reduce((s,i)=>s+i.valor,0);
   document.getElementById('inv-total').textContent = fmt(total);
@@ -1870,11 +1944,21 @@ function renderInvestimentosPage() {
   list.innerHTML = ordenados.map(i=>{
     const tipo = INV_TIPOS[i.tipo] || {emoji:'💼', nome:i.tipo};
     const [y,m,d] = i.data.split('-');
+    let metaExtra = '';
+    if(i.taxa) {
+      metaExtra += ` · taxa ${i.taxa}% ${i.periodicidade==='diario'?'ao dia':'ao mês'}`;
+    }
+    if(i.vencimento) {
+      const [vy,vm,vd] = i.vencimento.split('-');
+      metaExtra += ` · vence em ${vd}/${vm}/${vy}`;
+    }
+    const estimadoHtml = (i.valorEstimado ? `<div class="inv-item-extra">Estimado no vencimento: ${fmt(i.valorEstimado)}</div>` : '');
     return `<div class="inv-item">
       <div class="inv-item-icon">${tipo.emoji}</div>
       <div class="inv-item-info">
         <div class="inv-item-name">${i.nome||tipo.nome}</div>
-        <div class="inv-item-meta">${tipo.nome} · aplicado em ${d}/${m}/${y}</div>
+        <div class="inv-item-meta">${tipo.nome} · aplicado em ${d}/${m}/${y}${metaExtra}</div>
+        ${estimadoHtml}
       </div>
       <div class="inv-item-val">${fmt(i.valor)}</div>
       <button class="inv-item-del" onclick="removerInvestimento('${i.id}')">🗑</button>
@@ -1887,12 +1971,25 @@ function salvarInvestimento() {
   const nome = document.getElementById('fi-nome').value.trim();
   const valor = parseFloat(document.getElementById('fi-valor').value);
   const data_ = document.getElementById('fi-data').value;
+  const vencimento = document.getElementById('fi-vencimento').value || '';
+  const taxa = parseFloat(document.getElementById('fi-taxa').value) || 0;
+  const periodicidade = document.getElementById('fi-periodicidade').value;
   if(!valor || valor<=0) { toast('Informe o valor investido!', true); return; }
   if(!data_) { toast('Informe a data da aplicação!', true); return; }
-  _investimentos.unshift({ id: uid(), tipo, nome, valor, data: data_ });
+
+  let valorEstimado = null;
+  if(vencimento && taxa>0) {
+    const res = calcularValorEstimadoInvestimento(valor, taxa, periodicidade, data_, vencimento);
+    valorEstimado = res ? res.valorFuturo : null;
+  }
+
+  _investimentos.unshift({ id: uid(), tipo, nome, valor, data: data_, vencimento, taxa, periodicidade, valorEstimado });
   salvarInvestimentosLS();
   document.getElementById('fi-nome').value = '';
   document.getElementById('fi-valor').value = '';
+  document.getElementById('fi-vencimento').value = '';
+  document.getElementById('fi-taxa').value = '';
+  document.getElementById('inv-estimativa-box').style.display = 'none';
   renderInvestimentosPage();
   toast('✅ Investimento salvo!');
 }
