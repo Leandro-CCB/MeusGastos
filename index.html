@@ -857,6 +857,12 @@
   </div>
 
   <div class="config-card">
+    <h3>🔗 Compartilhar</h3>
+    <p style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;">Envie o link do MeuGasto para alguém experimentar o app.</p>
+    <button class="btn-primary" onclick="compartilharLinkApp()">📤 Compartilhar link do programa</button>
+  </div>
+
+  <div class="config-card">
     <h3>⚠️ Zona de perigo</h3>
     <button class="btn-danger" onclick="limparMes()">Limpar lançamentos do mês atual</button>
     <button class="btn-gray" onclick="limparTudo()">Apagar TODOS os dados (irreversível)</button>
@@ -2364,37 +2370,51 @@ function desenharPizza(catArr, total) {
   return canvas.toDataURL('image/png');
 }
 
-function desenharBarrasPlanejamento(plans, lans) {
+function desenharIconesPlanejamento(plans, lans) {
   if(!plans.length) return null;
-  const w = 700, barH = 34, gap = 14, padTop = 10, padBottom = 10;
-  const h = padTop + padBottom + plans.length * (barH + gap);
+  const cols = Math.min(plans.length, 5);
+  const rows = Math.ceil(plans.length / cols);
+  const iconSize = 64, gapX = 26, gapY = 16, padX = 20, padTop = 16, labelH = 46;
+  const cellW = iconSize + gapX;
+  const cellH = iconSize + labelH + gapY;
+  const w = padX*2 + cols*cellW - gapX;
+  const h = padTop + rows*cellH - gapY + 6;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.font = '15px sans-serif';
-  const maxVal = Math.max(...plans.map(p => Math.max(p.limite, lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0))), 1);
-  const labelW = 170, barMaxW = w - labelW - 90;
+
   plans.forEach((p, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const cx = padX + col*cellW + iconSize/2;
+    const cy = padTop + row*cellH + iconSize/2;
     const spent = lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0);
-    const y = padTop + i*(barH+gap);
-    const color = CAT_COLORS[p.cat] || '#6c63ff';
     const over = p.limite > 0 && spent > p.limite;
-    // fundo (limite)
-    const bgW = p.limite > 0 ? (p.limite/maxVal)*barMaxW : barMaxW*0.05;
-    ctx.fillStyle = '#e1e3eb';
-    ctx.fillRect(labelW, y, bgW, barH);
-    // barra gasto
-    const fillW = Math.min((spent/maxVal)*barMaxW, barMaxW);
-    ctx.fillStyle = over ? '#ff6b6b' : color;
-    ctx.fillRect(labelW, y, fillW, barH);
-    // rótulo
+    const color = over ? '#ff6b6b' : (CAT_COLORS[p.cat] || '#6c63ff');
+    const rgb = hexParaRgb(color);
+
+    // fundo circular do ícone
+    ctx.beginPath();
+    ctx.arc(cx, cy, iconSize/2, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.15)`;
+    ctx.fill();
+
+    // emoji do planejamento
+    ctx.font = (iconSize*0.48) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText(p.emoji || '🏷️', cx, cy + 2);
+
+    // nome
+    ctx.font = 'bold 12px sans-serif';
     ctx.fillStyle = '#2a2d3a';
-    ctx.textAlign = 'left';
-    ctx.fillText(p.nome, 0, y + barH/2 + 5);
-    ctx.textAlign = 'left';
-    ctx.font = '13px sans-serif';
-    ctx.fillText(fmtShort(spent)+' / '+(p.limite>0?fmtShort(p.limite):'—'), labelW + barMaxW + 10, y + barH/2 + 5);
-    ctx.font = '15px sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(p.nome, cx, cy + iconSize/2 + 16);
+
+    // valores
+    ctx.font = '10.5px sans-serif';
+    ctx.fillStyle = over ? '#ff6b6b' : '#8890b0';
+    ctx.fillText(fmtShort(spent)+' / '+(p.limite>0?fmtShort(p.limite):'—'), cx, cy + iconSize/2 + 30);
   });
   return { url: canvas.toDataURL('image/png'), w, h };
 }
@@ -2548,12 +2568,12 @@ function gerarRelatorioPDFDoc() {
     if(_config.plans && _config.plans.length > 0) {
       doc.setFont('helvetica','bold'); doc.setFontSize(13);
       doc.text('Planejamentos do mês', margin, y); y += 8;
-      const imgBar = desenharBarrasPlanejamento(_config.plans, lans);
-      if(imgBar) {
+      const imgIcons = desenharIconesPlanejamento(_config.plans, lans);
+      if(imgIcons) {
         const bw = pageW - 2*margin;
-        const bh = bw * (imgBar.h / imgBar.w);
+        const bh = bw * (imgIcons.h / imgIcons.w);
         if(y + bh > 780) { doc.addPage(); y = 50; }
-        doc.addImage(imgBar.url, 'PNG', margin, y, bw, bh);
+        doc.addImage(imgIcons.url, 'PNG', margin, y, bw, bh);
         y += bh + 10;
       }
       const rows = _config.plans.map(p => {
@@ -2669,6 +2689,28 @@ function hexParaRgb(hex) {
   if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
   const num = parseInt(hex,16);
   return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+}
+
+async function compartilharLinkApp() {
+  const link = window.location.href;
+  const titulo = 'MeuGasto';
+  const texto = 'Dá uma olhada no MeuGasto, um app pra controlar seus gastos:';
+
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: titulo, text: texto, url: link });
+      return;
+    }
+    throw new Error('sem-web-share');
+  } catch(e) {
+    if (e && e.name === 'AbortError') return; // usuário cancelou
+    try {
+      await navigator.clipboard.writeText(link);
+      toast('🔗 Link copiado! Cole onde quiser compartilhar.');
+    } catch(e2) {
+      prompt('Copie o link do MeuGasto abaixo:', link);
+    }
+  }
 }
 
 function exportarBackup() {
