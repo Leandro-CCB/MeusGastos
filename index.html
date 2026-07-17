@@ -2381,22 +2381,22 @@ function desenharBarrasPlanejamento(plans, lans) {
     const over = p.limite > 0 && spent > p.limite;
     // fundo (limite)
     const bgW = p.limite > 0 ? (p.limite/maxVal)*barMaxW : barMaxW*0.05;
-    ctx.fillStyle = '#2e3250';
+    ctx.fillStyle = '#e1e3eb';
     ctx.fillRect(labelW, y, bgW, barH);
     // barra gasto
     const fillW = Math.min((spent/maxVal)*barMaxW, barMaxW);
     ctx.fillStyle = over ? '#ff6b6b' : color;
     ctx.fillRect(labelW, y, fillW, barH);
     // rótulo
-    ctx.fillStyle = '#e8eaf0';
+    ctx.fillStyle = '#2a2d3a';
     ctx.textAlign = 'left';
-    ctx.fillText((p.emoji||'')+' '+p.nome, 0, y + barH/2 + 5);
+    ctx.fillText(p.nome, 0, y + barH/2 + 5);
     ctx.textAlign = 'left';
     ctx.font = '13px sans-serif';
     ctx.fillText(fmtShort(spent)+' / '+(p.limite>0?fmtShort(p.limite):'—'), labelW + barMaxW + 10, y + barH/2 + 5);
     ctx.font = '15px sans-serif';
   });
-  return canvas.toDataURL('image/png');
+  return { url: canvas.toDataURL('image/png'), w, h };
 }
 
 // Monta o documento jsPDF do relatório mensal (não salva/baixa nada — apenas retorna o doc pronto).
@@ -2419,35 +2419,36 @@ function gerarRelatorioPDFDoc() {
   const totalInvestido = _investimentos.reduce((s,i)=>s+i.valor,0);
 
   // --- CABEÇALHO (logo + título, estilo documento) ---
+  const logoSize = 68;
   if (_logoDataUrl) {
-    try { doc.addImage(_logoDataUrl, 'PNG', margin, y, 34, 34); }
+    try { doc.addImage(_logoDataUrl, 'PNG', margin, y, logoSize, logoSize); }
     catch(e) {
       doc.setFillColor(108,99,255);
-      doc.roundedRect(margin, y, 34, 34, 8, 8, 'F');
+      doc.roundedRect(margin, y+17, 34, 34, 8, 8, 'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255);
-      doc.text('M', margin+17, y+23, { align: 'center' });
+      doc.text('M', margin+17, y+40, { align: 'center' });
       doc.setTextColor(0);
     }
   } else {
     doc.setFillColor(108,99,255);
-    doc.roundedRect(margin, y, 34, 34, 8, 8, 'F');
+    doc.roundedRect(margin, y+17, 34, 34, 8, 8, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255);
-    doc.text('M', margin+17, y+23, { align: 'center' });
+    doc.text('M', margin+17, y+40, { align: 'center' });
     doc.setTextColor(0);
   }
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
   doc.setTextColor(140);
-  doc.text('MEUGASTO', margin+42, y+13);
+  doc.text('MEUGASTO', margin+logoSize+8, y+30);
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.text('Controle financeiro pessoal', margin+42, y+24);
+  doc.text('Controle financeiro pessoal', margin+logoSize+8, y+41);
   doc.setTextColor(0);
 
   doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.text('MeuGasto — Relatório de Gastos', pageW-margin, y+13, { align: 'right' });
+  doc.text('MeuGasto — Relatório de Gastos', pageW-margin, y+30, { align: 'right' });
   doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(120);
-  doc.text(mesLabel + '   •   Gerado em ' + new Date().toLocaleDateString('pt-BR'), pageW-margin, y+27, { align: 'right' });
+  doc.text(mesLabel + '   •   Gerado em ' + new Date().toLocaleDateString('pt-BR'), pageW-margin, y+44, { align: 'right' });
   doc.setTextColor(0);
-  y += 50;
+  y += logoSize + 16;
   doc.setDrawColor(225,227,235);
   doc.line(margin, y, pageW-margin, y);
   y += 20;
@@ -2475,7 +2476,7 @@ function gerarRelatorioPDFDoc() {
     doc.setFillColor(255,255,255);
     doc.roundedRect(margin, y, contentW, 38, 8, 8, 'FD');
     doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text(topCat.emoji+' '+topCat.nome, margin+14, y+16);
+    doc.text(topCat.nome, margin+14, y+16);
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(130);
     doc.text('Categoria com maior gasto no período', margin+14, y+28);
     doc.setTextColor(0);
@@ -2499,7 +2500,7 @@ function gerarRelatorioPDFDoc() {
       body: catArr.map(([catId,val]) => {
         const c = CATS.find(x=>x.id===catId) || {emoji:'📦', nome:catId};
         const pct = total>0 ? Math.round(val/total*100) : 0;
-        return [c.emoji+' '+c.nome, fmt(val), pct+'%'];
+        return [c.nome, fmt(val), pct+'%'];
       }),
       margin: { left: margin, right: margin },
       styles: { fontSize: 9.5, cellPadding: { top: 9, bottom: 9, left: 8, right: 8 } },
@@ -2550,15 +2551,15 @@ function gerarRelatorioPDFDoc() {
       const imgBar = desenharBarrasPlanejamento(_config.plans, lans);
       if(imgBar) {
         const bw = pageW - 2*margin;
-        const bh = bw * (0.14 * _config.plans.length);
+        const bh = bw * (imgBar.h / imgBar.w);
         if(y + bh > 780) { doc.addPage(); y = 50; }
-        doc.addImage(imgBar, 'PNG', margin, y, bw, Math.min(bh, 240));
-        y += Math.min(bh, 240) + 10;
+        doc.addImage(imgBar.url, 'PNG', margin, y, bw, bh);
+        y += bh + 10;
       }
       const rows = _config.plans.map(p => {
         const spent = lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0);
-        const dentro = p.limite<=0 ? '—' : (spent<=p.limite ? '✅ Dentro do planejado' : '⚠️ Acima do planejado');
-        return [p.emoji+' '+p.nome, fmt(spent), p.limite>0?fmt(p.limite):'—', dentro];
+        const dentro = p.limite<=0 ? '—' : (spent<=p.limite ? 'Dentro do planejado' : 'Acima do planejado');
+        return [p.nome, fmt(spent), p.limite>0?fmt(p.limite):'—', dentro];
       });
       doc.autoTable({
         startY: y,
@@ -2585,7 +2586,7 @@ function gerarRelatorioPDFDoc() {
       const rowsCartao = _cartoes.map(c => {
         const fatura = getComprasCartao(c.id, currentMonth).reduce((s,x)=>s+x.valor,0);
         const pct = c.limite>0 ? Math.round(fatura/c.limite*100) : 0;
-        return [c.emoji+' '+c.nome, fmt(fatura), c.limite>0?fmt(c.limite):'—', c.limite>0?(pct+'%'):'—'];
+        return [c.nome, fmt(fatura), c.limite>0?fmt(c.limite):'—', c.limite>0?(pct+'%'):'—'];
       });
       doc.autoTable({
         startY: y+6,
@@ -2614,7 +2615,7 @@ function gerarRelatorioPDFDoc() {
       const rowsInv = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).map(([tipoId,val]) => {
         const tipo = INV_TIPOS[tipoId] || {emoji:'💼', nome:tipoId};
         const pct = totalInv>0 ? Math.round(val/totalInv*100) : 0;
-        return [tipo.emoji+' '+tipo.nome, fmt(val), pct+'%'];
+        return [tipo.nome, fmt(val), pct+'%'];
       });
       doc.autoTable({
         startY: y+6,
