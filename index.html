@@ -853,6 +853,7 @@
     <button class="btn-primary" onclick="exportarBackup()" style="margin-top:12px;">⬇️ Exportar backup (.json)</button>
     <button class="btn-import" onclick="document.getElementById('import-file').click()">⬆️ Importar backup</button>
     <input type="file" id="import-file" class="file-input-hidden" accept="application/json" onchange="importarBackup(event)">
+    <button class="btn-whatsapp" onclick="compartilharBackupWhatsapp()" style="margin-top:10px;">📲 Enviar backup pelo WhatsApp</button>
   </div>
 
   <div class="config-card">
@@ -2263,6 +2264,25 @@ function limparTudo() {
   toast('Todos os dados foram apagados');
 }
 
+// ===================== LOGO (para o cabeçalho do PDF) =====================
+let _logoDataUrl = null;
+function preloadLogo() {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function() {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      _logoDataUrl = canvas.toDataURL('image/png');
+    } catch(e) { _logoDataUrl = null; }
+  };
+  img.onerror = function() { _logoDataUrl = null; };
+  img.src = 'LMA_LOGO.png';
+}
+preloadLogo();
+
 // ===================== BACKUP: EXPORTAR / IMPORTAR / WHATSAPP =====================
 function montarBackupObj() {
   return {
@@ -2275,6 +2295,27 @@ function montarBackupObj() {
     compras: _compras,
     investimentos: _investimentos
   };
+}
+
+function compartilharBackupWhatsapp() {
+  try {
+    const dados = montarBackupObj();
+    // Converte o backup em um bloco de texto simples (JSON formatado),
+    // evitando problemas de anexar arquivo pelo WhatsApp Web/app.
+    const textoBackup = '💾 Backup MeuGasto — ' + new Date().toLocaleDateString('pt-BR') + '\n\n'
+      + '```\n' + JSON.stringify(dados, null, 2) + '\n```';
+    if (navigator.share) {
+      navigator.share({ title: 'Backup MeuGasto', text: textoBackup })
+        .then(()=> toast('✅ Backup enviado para compartilhamento!'))
+        .catch(()=>{ /* usuário cancelou */ });
+    } else {
+      const msg = encodeURIComponent(textoBackup);
+      window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
+      toast('Abrindo WhatsApp com o backup em texto...');
+    }
+  } catch(e) {
+    toast('Erro ao preparar backup: ' + e.message.slice(0,80), true);
+  }
 }
 
 function nomeArquivoBackup() {
@@ -2378,11 +2419,22 @@ function gerarRelatorioPDFDoc() {
   const totalInvestido = _investimentos.reduce((s,i)=>s+i.valor,0);
 
   // --- CABEÇALHO (logo + título, estilo documento) ---
-  doc.setFillColor(108,99,255);
-  doc.roundedRect(margin, y, 34, 34, 8, 8, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255);
-  doc.text('M', margin+17, y+23, { align: 'center' });
-  doc.setTextColor(0);
+  if (_logoDataUrl) {
+    try { doc.addImage(_logoDataUrl, 'PNG', margin, y, 34, 34); }
+    catch(e) {
+      doc.setFillColor(108,99,255);
+      doc.roundedRect(margin, y, 34, 34, 8, 8, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255);
+      doc.text('M', margin+17, y+23, { align: 'center' });
+      doc.setTextColor(0);
+    }
+  } else {
+    doc.setFillColor(108,99,255);
+    doc.roundedRect(margin, y, 34, 34, 8, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255);
+    doc.text('M', margin+17, y+23, { align: 'center' });
+    doc.setTextColor(0);
+  }
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
   doc.setTextColor(140);
   doc.text('MEUGASTO', margin+42, y+13);
