@@ -308,7 +308,7 @@
   .cat-manage-item .cme-tag { font-size: 0.65rem; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
   .cat-manage-item .cme-del { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 4px; opacity: .7; color: var(--text2); }
   .cat-manage-item .cme-del:hover { opacity: 1; color: var(--warn); }
-  .emoji-quick-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .emoji-quick-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; max-height: 168px; overflow-y: auto; padding-right: 2px; }
   .emoji-quick-pick .eqp-btn {
     width: 36px; height: 36px; border-radius: 9px;
     background: var(--surface2); border: 1px solid var(--border);
@@ -1265,7 +1265,13 @@ function renderCatManageList() {
   }).join('');
 }
 
-const EMOJI_QUICK_OPTIONS = ['🏷️','🍽️','🛒','⛽','💊','🎮','🚌','🏠','👕','📚','📦','💡','🐾','🎁','✈️','🎓','🍺','☕','💇','🧾','🔧','📱','🎵','⚽','🐶','💳','🧴','🌿','🛠️','🚗'];
+const EMOJI_QUICK_OPTIONS = [
+  // Beleza
+  '💇','💇‍♀️','💅','💄','💋','🧴','🧖‍♀️','🧖','🪒','✂️','🪞','🧼','🧽','🪮','🧵','💆‍♀️','💆','🌸','🧪','🩰','👛','👗','👠','💍','🕶️','🧢',
+  // Gerais / diversos
+  '🏷️','🍽️','🛒','⛽','💊','🎮','🚌','🏠','👕','📚','📦','💡','🐾','🎁','✈️','🎓','🍺','☕','🧾','🔧','📱','🎵','⚽','🐶','💳','🌿','🛠️','🚗',
+  '🎂','🍕','🍷','🎬','📷','💼','🐱','🌱','🧸','🏋️','🚴','⛺','🛏️','🖥️','🎧','📖','💰','🧻'
+];
 
 function renderCatEmojiQuickPick() {
   const wrap = document.getElementById('cat-emoji-quick-pick');
