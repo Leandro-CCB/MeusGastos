@@ -301,6 +301,13 @@
   }
   .add-plan-row input:focus, .add-plan-row select:focus { border-color: var(--accent); }
   .add-plan-row .emoji-pick { width: 54px; text-align: center; font-size: 1.2rem; padding: 10px 6px; }
+  .add-plan-row .cat-color-pick { width: 54px; flex: 0 0 54px; padding: 4px; height: 42px; cursor: pointer; background: var(--surface2); }
+  .cat-manage-item { display: flex; align-items: center; gap: 10px; background: var(--surface2); border-radius: 12px; padding: 10px 12px; }
+  .cat-manage-item .cme-swatch { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .cat-manage-item .cme-name { flex: 1; font-size: 0.85rem; font-weight: 600; }
+  .cat-manage-item .cme-tag { font-size: 0.65rem; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .cat-manage-item .cme-del { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 4px; opacity: .7; color: var(--text2); }
+  .cat-manage-item .cme-del:hover { opacity: 1; color: var(--warn); }
   .btn-add-plan {
     width: 100%; padding: 11px; background: var(--accent);
     border: none; border-radius: 10px; color: #fff;
@@ -789,6 +796,20 @@
   </div>
 
   <div class="config-card">
+    <h3>🏷️ Categorias</h3>
+    <div class="plan-list" id="cat-manage-list"></div>
+    <button class="btn-toggle-add" onclick="toggleAddCat()">➕ Adicionar categoria</button>
+    <div class="add-plan-form" id="add-cat-form" style="display:none; margin-top:12px;">
+      <div class="add-plan-row">
+        <input type="text" class="emoji-pick" id="new-cat-emoji" placeholder="🏷️" maxlength="2">
+        <input type="text" id="new-cat-nome" placeholder="Nome da categoria">
+        <input type="color" class="cat-color-pick" id="new-cat-cor" value="#6c63ff">
+      </div>
+      <button class="btn-add-plan" onclick="adicionarCategoria()">Adicionar</button>
+    </div>
+  </div>
+
+  <div class="config-card">
     <h3>💾 Backup local</h3>
     <div class="supabase-status-box">
       <p id="backup-info">Seus dados ficam salvos apenas neste dispositivo (localStorage). Faça backup regularmente para não perder nada.</p>
@@ -1136,7 +1157,7 @@ function setSyncStatus(state, label) {
 }
 
 // ===================== DADOS LOCAIS =====================
-const CATS = [
+const CATS_PADRAO = [
   { id:'alimentacao', emoji:'🍽️', nome:'Alimentação' },
   { id:'combustivel', emoji:'⛽', nome:'Combustível' },
   { id:'mercado',     emoji:'🛒', nome:'Mercado' },
@@ -1148,6 +1169,8 @@ const CATS = [
   { id:'educacao',    emoji:'📚', nome:'Educação' },
   { id:'outros',      emoji:'📦', nome:'Outros' },
 ];
+// CATS = categorias padrão + categorias criadas pelo usuário (_config.customCats)
+let CATS = CATS_PADRAO.slice();
 const CAT_COLORS = {
   alimentacao:'#f7b731', combustivel:'#45aaf2', mercado:'#26de81',
   saude:'#fd9644', lazer:'#a55eea', transporte:'#4bcffa',
@@ -1165,7 +1188,8 @@ const INV_TIPOS = {
 
 let _lancamentos = [];
 // _config.plans = [{ id, emoji, nome, cat, limite }]
-let _config = { plans: [] };
+// _config.customCats = [{ id, emoji, nome, cor }]
+let _config = { plans: [], customCats: [] };
 let _cartoes = []; // { id, emoji, nome, limite, venc }
 let _compras = [];  // { id, cartaoId, valor, desc, data }
 let _investimentos = []; // { id, tipo, nome, valor, data }
@@ -1191,13 +1215,84 @@ function uid() { return 'id' + Date.now() + Math.random().toString(36).slice(2,7
 // ===================== CARREGAR TUDO DO LOCALSTORAGE =====================
 function loadAllFromLocal() {
   _lancamentos = lsGet(LS_KEYS.lancamentos, []);
-  _config = lsGet(LS_KEYS.config, { plans: [] });
+  _config = lsGet(LS_KEYS.config, { plans: [], customCats: [] });
   if(!_config.plans) _config.plans = [];
+  if(!_config.customCats) _config.customCats = [];
+  rebuildCats();
   _cartoes = lsGet(LS_KEYS.cartoes, []);
   _compras = lsGet(LS_KEYS.compras, []);
   _investimentos = lsGet(LS_KEYS.investimentos, []);
   migrarComprasAntigasParaLancamentos();
   setSyncStatus('ok', 'salvo');
+}
+
+// Reconstrói CATS (padrão + criadas pelo usuário) e o mapa de cores a partir de _config.customCats
+function rebuildCats() {
+  const custom = _config.customCats || [];
+  CATS = CATS_PADRAO.concat(custom.map(c => ({ id:c.id, emoji:c.emoji, nome:c.nome })));
+  custom.forEach(c => { CAT_COLORS[c.id] = c.cor; });
+}
+
+function slugify(str) {
+  return (str||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,24) || 'cat';
+}
+
+function renderCatManageList() {
+  const list = document.getElementById('cat-manage-list');
+  if(!list) return;
+  list.innerHTML = CATS.map(c => {
+    const isCustom = (_config.customCats||[]).some(cc => cc.id === c.id);
+    const color = CAT_COLORS[c.id] || '#b2bec3';
+    return `<div class="cat-manage-item">
+      <div class="cme-swatch" style="background:${color}22;color:${color};">${c.emoji}</div>
+      <div class="cme-name">${c.nome}${isCustom ? '' : '<br><span class="cme-tag">Padrão</span>'}</div>
+      ${isCustom ? `<button class="cme-del" onclick="removerCategoria('${c.id}')">🗑</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function toggleAddCat() {
+  const form = document.getElementById('add-cat-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function adicionarCategoria() {
+  const emoji = document.getElementById('new-cat-emoji').value.trim() || '🏷️';
+  const nome  = document.getElementById('new-cat-nome').value.trim();
+  const cor   = document.getElementById('new-cat-cor').value || '#6c63ff';
+  if(!nome) { toast('Informe o nome da categoria!', true); return; }
+
+  let id = slugify(nome);
+  if(CATS.some(c => c.id === id)) {
+    let i = 2;
+    while(CATS.some(c => c.id === id + i)) i++;
+    id = id + i;
+  }
+
+  _config.customCats.push({ id, emoji, nome, cor });
+  rebuildCats();
+  salvarConfigLS();
+
+  document.getElementById('new-cat-emoji').value = '';
+  document.getElementById('new-cat-nome').value = '';
+  document.getElementById('new-cat-cor').value = '#6c63ff';
+  document.getElementById('add-cat-form').style.display = 'none';
+
+  renderCatManageList();
+  populatePlanCatSelect();
+  toast('✅ Categoria adicionada!');
+}
+
+function removerCategoria(id) {
+  const cat = CATS.find(c => c.id === id);
+  if(!confirm('Remover categoria "'+(cat?cat.nome:id)+'"? Lançamentos e planejamentos que a usam continuarão salvos, mas ela deixará de aparecer nas opções.')) return;
+  _config.customCats = (_config.customCats||[]).filter(c => c.id !== id);
+  rebuildCats();
+  salvarConfigLS();
+  renderCatManageList();
+  populatePlanCatSelect();
+  toast('Categoria removida');
 }
 
 // Migra o antigo array separado de "compras no cartão" para dentro de _lancamentos,
@@ -2006,6 +2101,7 @@ function removerInvestimento(id) {
 function loadConfigUI() {
   renderPlanList();
   populatePlanCatSelect();
+  renderCatManageList();
 }
 
 function renderPlanList() {
@@ -2086,14 +2182,17 @@ function limparTudo() {
   localStorage.removeItem(LS_KEYS.compras);
   localStorage.removeItem(LS_KEYS.investimentos);
   _lancamentos = [];
-  _config = { plans: [] };
+  _config = { plans: [], customCats: [] };
   _cartoes = [];
   _compras = [];
   _investimentos = [];
+  Object.keys(CAT_COLORS).forEach(k => { if(!CATS_PADRAO.some(c=>c.id===k)) delete CAT_COLORS[k]; });
+  rebuildCats();
   renderDashboard();
   renderAllTx();
   renderCartoesPage();
   renderInvestimentosPage();
+  loadConfigUI();
   toast('Todos os dados foram apagados');
 }
 
@@ -2176,8 +2275,11 @@ function importarBackup(event) {
       if(!dados || typeof dados !== 'object') throw new Error('Arquivo inválido');
       if(!confirm('Importar este backup vai SUBSTITUIR todos os dados atuais neste dispositivo. Continuar?')) return;
       _lancamentos = Array.isArray(dados.lancamentos) ? dados.lancamentos : [];
-      _config = dados.config && typeof dados.config === 'object' ? dados.config : { plans: [] };
+      _config = dados.config && typeof dados.config === 'object' ? dados.config : { plans: [], customCats: [] };
       if(!_config.plans) _config.plans = [];
+      if(!_config.customCats) _config.customCats = [];
+      Object.keys(CAT_COLORS).forEach(k => { if(!CATS_PADRAO.some(c=>c.id===k)) delete CAT_COLORS[k]; });
+      rebuildCats();
       _cartoes = Array.isArray(dados.cartoes) ? dados.cartoes : [];
       _compras = Array.isArray(dados.compras) ? dados.compras : [];
       _investimentos = Array.isArray(dados.investimentos) ? dados.investimentos : [];
@@ -2226,6 +2328,7 @@ renderDashboard();
 renderAllTx();
 renderCartoesPage();
 renderInvestimentosPage();
+loadConfigUI();
 </script>
 </body>
 </html>
