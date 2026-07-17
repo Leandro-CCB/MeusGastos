@@ -308,6 +308,14 @@
   .cat-manage-item .cme-tag { font-size: 0.65rem; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
   .cat-manage-item .cme-del { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 4px; opacity: .7; color: var(--text2); }
   .cat-manage-item .cme-del:hover { opacity: 1; color: var(--warn); }
+  .emoji-quick-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .emoji-quick-pick .eqp-btn {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: var(--surface2); border: 1px solid var(--border);
+    font-size: 1.05rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: border-color .12s;
+  }
+  .emoji-quick-pick .eqp-btn:hover, .emoji-quick-pick .eqp-btn.selected { border-color: var(--accent); background: rgba(108,99,255,.15); }
   .btn-add-plan {
     width: 100%; padding: 11px; background: var(--accent);
     border: none; border-radius: 10px; color: #fff;
@@ -805,6 +813,7 @@
         <input type="text" id="new-cat-nome" placeholder="Nome da categoria">
         <input type="color" class="cat-color-pick" id="new-cat-cor" value="#6c63ff">
       </div>
+      <div class="emoji-quick-pick" id="cat-emoji-quick-pick"></div>
       <button class="btn-add-plan" onclick="adicionarCategoria()">Adicionar</button>
     </div>
   </div>
@@ -1241,20 +1250,41 @@ function slugify(str) {
 function renderCatManageList() {
   const list = document.getElementById('cat-manage-list');
   if(!list) return;
-  list.innerHTML = CATS.map(c => {
-    const isCustom = (_config.customCats||[]).some(cc => cc.id === c.id);
-    const color = CAT_COLORS[c.id] || '#b2bec3';
+  const custom = _config.customCats || [];
+  if(custom.length === 0) {
+    list.innerHTML = '<div style="color:var(--text2);font-size:0.82rem;text-align:center;padding:8px 0;">Nenhuma categoria criada ainda</div>';
+    return;
+  }
+  list.innerHTML = custom.map(c => {
+    const color = c.cor || CAT_COLORS[c.id] || '#b2bec3';
     return `<div class="cat-manage-item">
       <div class="cme-swatch" style="background:${color}22;color:${color};">${c.emoji}</div>
-      <div class="cme-name">${c.nome}${isCustom ? '' : '<br><span class="cme-tag">Padrão</span>'}</div>
-      ${isCustom ? `<button class="cme-del" onclick="removerCategoria('${c.id}')">🗑</button>` : ''}
+      <div class="cme-name">${c.nome}</div>
+      <button class="cme-del" onclick="removerCategoria('${c.id}')">🗑</button>
     </div>`;
   }).join('');
+}
+
+const EMOJI_QUICK_OPTIONS = ['🏷️','🍽️','🛒','⛽','💊','🎮','🚌','🏠','👕','📚','📦','💡','🐾','🎁','✈️','🎓','🍺','☕','💇','🧾','🔧','📱','🎵','⚽','🐶','💳','🧴','🌿','🛠️','🚗'];
+
+function renderCatEmojiQuickPick() {
+  const wrap = document.getElementById('cat-emoji-quick-pick');
+  if(!wrap) return;
+  const current = document.getElementById('new-cat-emoji').value;
+  wrap.innerHTML = EMOJI_QUICK_OPTIONS.map(e =>
+    `<button type="button" class="eqp-btn${e===current?' selected':''}" onclick="selecionarEmojiCat('${e}')">${e}</button>`
+  ).join('');
+}
+
+function selecionarEmojiCat(e) {
+  document.getElementById('new-cat-emoji').value = e;
+  renderCatEmojiQuickPick();
 }
 
 function toggleAddCat() {
   const form = document.getElementById('add-cat-form');
   form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if(form.style.display === 'block') renderCatEmojiQuickPick();
 }
 
 function adicionarCategoria() {
@@ -1278,6 +1308,7 @@ function adicionarCategoria() {
   document.getElementById('new-cat-nome').value = '';
   document.getElementById('new-cat-cor').value = '#6c63ff';
   document.getElementById('add-cat-form').style.display = 'none';
+  renderCatEmojiQuickPick();
 
   renderCatManageList();
   populatePlanCatSelect();
