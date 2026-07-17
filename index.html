@@ -2303,25 +2303,62 @@ function montarBackupObj() {
   };
 }
 
-function compartilharBackupWhatsapp() {
+async function compartilharBackupWhatsapp() {
+  let blob, file;
   try {
     const dados = montarBackupObj();
-    // Converte o backup em um bloco de texto simples (JSON formatado),
-    // evitando problemas de anexar arquivo pelo WhatsApp Web/app.
-    const textoBackup = '💾 Backup MeuGasto — ' + new Date().toLocaleDateString('pt-BR') + '\n\n'
-      + '```\n' + JSON.stringify(dados, null, 2) + '\n```';
-    if (navigator.share) {
-      navigator.share({ title: 'Backup MeuGasto', text: textoBackup })
-        .then(()=> toast('✅ Backup enviado para compartilhamento!'))
-        .catch(()=>{ /* usuário cancelou */ });
-    } else {
-      const msg = encodeURIComponent(textoBackup);
-      window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
-      toast('Abrindo WhatsApp com o backup em texto...');
-    }
+    blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+    file = new File([blob], nomeArquivoBackup(), { type: 'application/json' });
   } catch(e) {
     toast('Erro ao preparar backup: ' + e.message.slice(0,80), true);
+    return;
   }
+
+  const textoMsg = '💾 Backup MeuGasto — ' + new Date().toLocaleDateString('pt-BR');
+
+  try {
+    // Tenta usar o Web Share API nativo (mobile) para compartilhar o ARQUIVO diretamente,
+    // permitindo escolher o WhatsApp na folha de compartilhamento do celular.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Backup MeuGasto', text: textoMsg });
+      toast('✅ Backup enviado para compartilhamento!');
+      return;
+    }
+
+    if (navigator.share) {
+      // Alguns navegadores têm share() mas sem suporte a arquivos — baixa o arquivo
+      // e abre o compartilhamento só com texto, pedindo para anexar manualmente.
+      baixarBlob(blob, file.name);
+      await navigator.share({ title: 'Backup MeuGasto', text: textoMsg + ' — arquivo ' + file.name + ' baixado, anexe-o na conversa.' });
+      toast('Backup baixado — anexe-o na conversa que abriu');
+      return;
+    }
+
+    throw new Error('sem-web-share');
+  } catch(e) {
+    if (e && e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+    // Fallback: navegador desktop sem Web Share API (ex: WhatsApp Web não aceita anexo por link).
+    // Baixa o arquivo e abre o WhatsApp com uma mensagem de texto explicando para anexar o arquivo.
+    try {
+      baixarBlob(blob, file.name);
+      const msg = encodeURIComponent(textoMsg + '. O arquivo ' + file.name + ' acabou de ser baixado — anexe-o aqui no WhatsApp.');
+      window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
+      toast('Backup baixado — anexe-o na conversa do WhatsApp que abriu');
+    } catch(e2) {
+      toast('Erro ao compartilhar: ' + e2.message.slice(0,60), true);
+    }
+  }
+}
+
+function baixarBlob(blob, nomeArq) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArq;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function nomeArquivoBackup() {
@@ -2370,6 +2407,32 @@ function desenharPizza(catArr, total) {
   return canvas.toDataURL('image/png');
 }
 
+// Desenha o emoji de uma categoria sobre um fundo circular colorido e devolve um PNG
+// em alta resolução (supersampling) — jsPDF não renderiza emoji como texto, então
+// precisamos "printar" o emoji em um canvas e inserir como imagem.
+const _catIconCache = {};
+function iconeCategoriaDataUrl(catId, emoji, corHex) {
+  const cacheKey = catId + '|' + corHex;
+  if (_catIconCache[cacheKey]) return _catIconCache[cacheKey];
+  const SCALE = 4, size = 24;
+  const canvas = document.createElement('canvas');
+  canvas.width = size*SCALE; canvas.height = size*SCALE;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(SCALE, SCALE);
+  const rgb = hexParaRgb(corHex || '#b2bec3');
+  ctx.beginPath();
+  ctx.arc(size/2, size/2, size/2, 0, Math.PI*2);
+  ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.18)`;
+  ctx.fill();
+  ctx.font = (size*0.55) + 'px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji || '📦', size/2, size/2 + 1);
+  const url = canvas.toDataURL('image/png');
+  _catIconCache[cacheKey] = url;
+  return url;
+}
+
 function desenharIconesPlanejamento(plans, lans) {
   if(!plans.length) return null;
   const cols = Math.min(plans.length, 5);
@@ -2379,9 +2442,11 @@ function desenharIconesPlanejamento(plans, lans) {
   const cellH = iconSize + labelH + gapY;
   const w = padX*2 + cols*cellW - gapX;
   const h = padTop + rows*cellH - gapY + 6;
+  const SCALE = 3; // supersampling: desenha em 3x e reduz no PDF, evitando pixelização
   const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
+  canvas.width = w*SCALE; canvas.height = h*SCALE;
   const ctx = canvas.getContext('2d');
+  ctx.scale(SCALE, SCALE);
 
   plans.forEach((p, i) => {
     const col = i % cols, row = Math.floor(i / cols);
@@ -2516,19 +2581,28 @@ function gerarRelatorioPDFDoc() {
     const maxCatVal = Math.max(...catArr.map(([,v])=>v), 1);
     doc.autoTable({
       startY: y,
-      head: [['Categoria','Valor','% do total']],
+      head: [['','Categoria','Valor','% do total']],
       body: catArr.map(([catId,val]) => {
         const c = CATS.find(x=>x.id===catId) || {emoji:'📦', nome:catId};
         const pct = total>0 ? Math.round(val/total*100) : 0;
-        return [c.nome, fmt(val), pct+'%'];
+        return ['', c.nome, fmt(val), pct+'%'];
       }),
       margin: { left: margin, right: margin },
-      styles: { fontSize: 9.5, cellPadding: { top: 9, bottom: 9, left: 8, right: 8 } },
+      styles: { fontSize: 9.5, cellPadding: { top: 9, bottom: 9, left: 8, right: 8 }, valign: 'middle' },
       headStyles: { fillColor: [108,99,255], textColor: 255 },
       alternateRowStyles: { fillColor: [248,248,252] },
-      columnStyles: { 1: { cellWidth: 110 }, 2: { cellWidth: 130 } },
+      columnStyles: { 0: { cellWidth: 28 }, 2: { cellWidth: 100 }, 3: { cellWidth: 125 } },
       didDrawCell: function(data) {
-        if(data.section === 'body' && data.column.index === 2) {
+        if(data.section === 'body' && data.column.index === 0) {
+          const [catId] = catArr[data.row.index];
+          const c = CATS.find(x=>x.id===catId) || {emoji:'📦', nome:catId};
+          const iconUrl = iconeCategoriaDataUrl(catId, c.emoji, CAT_COLORS[catId] || '#b2bec3');
+          const iconSize = 18;
+          const ix = data.cell.x + (data.cell.width - iconSize)/2;
+          const iy = data.cell.y + (data.cell.height - iconSize)/2;
+          doc.addImage(iconUrl, 'PNG', ix, iy, iconSize, iconSize);
+        }
+        if(data.section === 'body' && data.column.index === 3) {
           const [catId, val] = catArr[data.row.index];
           const color = hexParaRgb(CAT_COLORS[catId] || '#b2bec3');
           const barMaxW = data.cell.width - 34;
@@ -2566,11 +2640,22 @@ function gerarRelatorioPDFDoc() {
 
     // --- PLANEJAMENTOS ---
     if(_config.plans && _config.plans.length > 0) {
+      // Estima a altura total do bloco (título + ícones + tabela) para decidir ANTES
+      // de desenhar o título se precisa quebrar página — evita título órfão no rodapé.
+      const imgIconsPrev = desenharIconesPlanejamento(_config.plans, lans);
+      const bwPrev = imgIconsPrev ? Math.min(imgIconsPrev.w, contentW) : 0;
+      const bhPrev = imgIconsPrev ? bwPrev * (imgIconsPrev.h / imgIconsPrev.w) : 0;
+      const estTableH = 30 + _config.plans.length * 24;
+      const estBlockH = 30 + bhPrev + 10 + estTableH;
+      if(y + estBlockH > 780 && y > 60) { doc.addPage(); y = 50; }
+
       doc.setFont('helvetica','bold'); doc.setFontSize(13);
       doc.text('Planejamentos do mês', margin, y); y += 8;
       const imgIcons = desenharIconesPlanejamento(_config.plans, lans);
       if(imgIcons) {
-        const bw = pageW - 2*margin;
+        // Usa o tamanho natural do ícone; só reduz se não couber na largura da página
+        // (antes esticava sempre até a largura total, o que pixelava com poucos planejamentos)
+        const bw = Math.min(imgIcons.w, contentW);
         const bh = bw * (imgIcons.h / imgIcons.w);
         if(y + bh > 780) { doc.addPage(); y = 50; }
         doc.addImage(imgIcons.url, 'PNG', margin, y, bw, bh);
