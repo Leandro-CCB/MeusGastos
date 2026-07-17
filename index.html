@@ -169,6 +169,19 @@
   .progress-fill.over { background: var(--warn) !important; }
   .budget-card .bc-pct { font-size: 0.7rem; color: var(--text2); margin-top: 5px; }
 
+  /* REPORT EXPORT CARD (dashboard) */
+  .report-export-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 8px;
+  }
+  .report-export-title { font-size: 0.92rem; font-weight: 700; margin-bottom: 4px; }
+  .report-export-sub { font-size: 0.78rem; color: var(--text2); line-height: 1.4; margin-bottom: 14px; }
+  .report-export-btns { display: flex; flex-direction: column; gap: 10px; }
+  .report-export-btns .btn-primary, .report-export-btns .btn-whatsapp { margin-top: 0; }
+
   /* RECENT */
   .recent-list { display: flex; flex-direction: column; gap: 8px; }
   .tx-item {
@@ -666,6 +679,18 @@
 
   <div class="section-title">Últimos lançamentos</div>
   <div class="recent-list" id="dash-recent"></div>
+
+  <div class="section-title">Relatório</div>
+  <div class="report-export-card">
+    <div class="report-export-text">
+      <div class="report-export-title">🧾 Relatório mensal</div>
+      <div class="report-export-sub">Gere um PDF profissional com o resumo do mês para compartilhar ou guardar.</div>
+    </div>
+    <div class="report-export-btns">
+      <button class="btn-primary" onclick="exportarRelatorioPDF()">🧾 Exportar relatório em PDF</button>
+      <button class="btn-whatsapp" onclick="compartilharWhatsapp()">📲 Enviar relatório pelo WhatsApp</button>
+    </div>
+  </div>
 </div>
 
 <!-- ==================== LANÇAMENTOS ==================== -->
@@ -825,9 +850,7 @@
     <div class="supabase-status-box">
       <p id="backup-info">Seus dados ficam salvos apenas neste dispositivo (localStorage). Faça backup regularmente para não perder nada.</p>
     </div>
-    <button class="btn-primary" onclick="exportarRelatorioPDF()" style="margin-top:12px;">🧾 Exportar relatório em PDF</button>
     <button class="btn-primary" onclick="exportarBackup()" style="margin-top:12px;">⬇️ Exportar backup (.json)</button>
-    <button class="btn-whatsapp" onclick="compartilharWhatsapp()">📲 Compartilhar backup via WhatsApp</button>
     <button class="btn-import" onclick="document.getElementById('import-file').click()">⬆️ Importar backup</button>
     <input type="file" id="import-file" class="file-input-hidden" accept="application/json" onchange="importarBackup(event)">
   </div>
@@ -2182,20 +2205,24 @@ function adicionarPlan() {
   if(!cat)  { toast('Selecione uma categoria!', true); return; }
   if(limite <= 0) { toast('Informe o limite!', true); return; }
   _config.plans.push({ id: 'p'+Date.now(), emoji, nome, cat, limite });
+  salvarConfigLS();
   document.getElementById('new-plan-emoji').value = '';
   document.getElementById('new-plan-nome').value = '';
   document.getElementById('new-plan-cat').value = '';
   document.getElementById('new-plan-valor').value = '';
   document.getElementById('add-plan-form').style.display = 'none';
   renderPlanList();
-  toast('Planejamento adicionado — clique em Salvar');
+  renderDashboard();
+  toast('✅ Planejamento salvo!');
 }
 
 function removerPlan(idx) {
   if(!confirm('Remover planejamento "'+_config.plans[idx].nome+'"?')) return;
   _config.plans.splice(idx, 1);
+  salvarConfigLS();
   renderPlanList();
-  toast('Removido — clique em Salvar para confirmar');
+  renderDashboard();
+  toast('✅ Planejamento removido!');
 }
 
 function salvarPlans() {
@@ -2331,84 +2358,138 @@ function desenharBarrasPlanejamento(plans, lans) {
   return canvas.toDataURL('image/png');
 }
 
-function exportarRelatorioPDF() {
-  try {
-    if(!window.jspdf || !window.jspdf.jsPDF) { toast('Erro: biblioteca de PDF não carregou (verifique sua conexão)', true); return; }
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-    const pageW = doc.internal.pageSize.getWidth();
-    const margin = 40;
-    let y = 50;
+// Monta o documento jsPDF do relatório mensal (não salva/baixa nada — apenas retorna o doc pronto).
+// Usado tanto pelo botão "Exportar PDF" quanto pelo "Compartilhar via WhatsApp".
+function gerarRelatorioPDFDoc() {
+  if(!window.jspdf || !window.jspdf.jsPDF) throw new Error('Biblioteca de PDF não carregou (verifique sua conexão)');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 40;
+  const contentW = pageW - 2*margin;
+  let y = 46;
 
-    const lans = getLancamentos(currentMonth);
-    const total = lans.reduce((s,l)=>s+l.valor,0);
-    const catTotals = {};
-    lans.forEach(l => { catTotals[l.cat] = (catTotals[l.cat]||0) + l.valor; });
-    const catArr = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
-    const mesLabel = document.getElementById('month-label') ? document.getElementById('month-label').textContent : currentMonth;
+  const lans = getLancamentos(currentMonth);
+  const total = lans.reduce((s,l)=>s+l.valor,0);
+  const catTotals = {};
+  lans.forEach(l => { catTotals[l.cat] = (catTotals[l.cat]||0) + l.valor; });
+  const catArr = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const mesLabel = document.getElementById('month-label') ? document.getElementById('month-label').textContent : currentMonth;
+  const totalInvestido = _investimentos.reduce((s,i)=>s+i.valor,0);
 
-    // --- CABEÇALHO ---
-    doc.setFont('helvetica','bold'); doc.setFontSize(20);
-    doc.text('MeuGasto — Relatório do mês', margin, y);
-    y += 22;
-    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(100);
-    doc.text('Período: ' + mesLabel + '   •   Gerado em: ' + new Date().toLocaleDateString('pt-BR'), margin, y);
+  // --- CABEÇALHO (logo + título, estilo documento) ---
+  doc.setFillColor(108,99,255);
+  doc.roundedRect(margin, y, 34, 34, 8, 8, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255);
+  doc.text('M', margin+17, y+23, { align: 'center' });
+  doc.setTextColor(0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.setTextColor(140);
+  doc.text('MEUGASTO', margin+42, y+13);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.text('Controle financeiro pessoal', margin+42, y+24);
+  doc.setTextColor(0);
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('MeuGasto — Relatório de Gastos', pageW-margin, y+13, { align: 'right' });
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(120);
+  doc.text(mesLabel + '   •   Gerado em ' + new Date().toLocaleDateString('pt-BR'), pageW-margin, y+27, { align: 'right' });
+  doc.setTextColor(0);
+  y += 50;
+  doc.setDrawColor(225,227,235);
+  doc.line(margin, y, pageW-margin, y);
+  y += 20;
+
+  // --- TOTAL DO MÊS (card claro, estilo documento) ---
+  doc.setDrawColor(225,227,235);
+  doc.setFillColor(248,248,252);
+  doc.roundedRect(margin, y, contentW, 40, 8, 8, 'FD');
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(90);
+  doc.text('Total gasto no mês', margin+14, y+25);
+  doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(108,99,255);
+  doc.text(fmt(total), pageW-margin-14, y+25, { align: 'right' });
+  doc.setTextColor(0);
+  y += 56;
+
+  // --- MAIOR GASTO ---
+  if(catArr.length > 0) {
+    const [topId, topVal] = catArr[0];
+    const topCat = CATS.find(c=>c.id===topId) || {emoji:'📦', nome:topId};
+    const pct = total>0 ? Math.round(topVal/total*100) : 0;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(140);
+    doc.text('MAIOR GASTO DO MÊS', margin, y); y += 8;
     doc.setTextColor(0);
-    y += 24;
-
-    // --- TOTAL DO MÊS ---
-    doc.setFillColor(108,99,255);
-    doc.roundedRect(margin, y, pageW-2*margin, 50, 8, 8, 'F');
-    doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(12);
-    doc.text('GASTO TOTAL NO MÊS', margin+16, y+20);
-    doc.setFontSize(20);
-    doc.text(fmt(total), margin+16, y+40);
+    doc.setDrawColor(225,227,235);
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(margin, y, contentW, 38, 8, 8, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text(topCat.emoji+' '+topCat.nome, margin+14, y+16);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(130);
+    doc.text('Categoria com maior gasto no período', margin+14, y+28);
     doc.setTextColor(0);
-    y += 70;
+    doc.setFillColor(255,235,235);
+    doc.roundedRect(pageW-margin-95, y+9, 82, 20, 10, 10, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,107,107);
+    doc.text(fmt(topVal), pageW-margin-54, y+22, { align: 'center' });
+    doc.setTextColor(0);
+    y += 54;
+  }
 
-    // --- MAIOR GASTO ---
-    if(catArr.length > 0) {
-      const [topId, topVal] = catArr[0];
-      const topCat = CATS.find(c=>c.id===topId) || {emoji:'📦', nome:topId};
-      const pct = total>0 ? Math.round(topVal/total*100) : 0;
-      doc.setFont('helvetica','bold'); doc.setFontSize(12);
-      doc.text('🔥 Maior gasto do mês', margin, y); y += 16;
-      doc.setFont('helvetica','normal'); doc.setFontSize(11);
-      doc.text(topCat.emoji+' '+topCat.nome+' — '+fmt(topVal)+' ('+pct+'% do total)', margin, y);
-      y += 24;
-    }
-
-    // --- GRÁFICO DE CATEGORIAS ---
-    if(catArr.length > 0) {
-      doc.setFont('helvetica','bold'); doc.setFontSize(13);
-      doc.text('Gastos por categoria', margin, y); y += 10;
-      const imgPizza = desenharPizza(catArr, total);
-      const imgSize = 170;
-      doc.addImage(imgPizza, 'PNG', margin, y, imgSize, imgSize);
-      // legenda ao lado
-      let ly = y + 6;
-      const lx = margin + imgSize + 24;
-      doc.setFontSize(10);
-      catArr.forEach(([catId,val]) => {
+  // --- RESUMO POR CATEGORIA (tabela com barra proporcional) ---
+  if(catArr.length > 0) {
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(140);
+    doc.text('RESUMO POR CATEGORIA', margin, y); y += 8;
+    doc.setTextColor(0);
+    const maxCatVal = Math.max(...catArr.map(([,v])=>v), 1);
+    doc.autoTable({
+      startY: y,
+      head: [['Categoria','Valor','% do total']],
+      body: catArr.map(([catId,val]) => {
         const c = CATS.find(x=>x.id===catId) || {emoji:'📦', nome:catId};
-        const color = CAT_COLORS[catId] || '#b2bec3';
-        const rgb = hexParaRgb(color);
-        doc.setFillColor(rgb.r, rgb.g, rgb.b);
-        doc.rect(lx, ly-8, 8, 8, 'F');
         const pct = total>0 ? Math.round(val/total*100) : 0;
-        doc.setFont('helvetica','normal');
-        doc.text(c.emoji+' '+c.nome+' — '+fmt(val)+' ('+pct+'%)', lx+12, ly);
-        ly += 14;
-        if(ly > y + imgSize + 40) return;
-      });
-      y += imgSize + 20;
-    } else {
-      doc.setFont('helvetica','normal'); doc.setFontSize(11);
-      doc.text('Nenhum lançamento neste mês.', margin, y);
-      y += 20;
-    }
+        return [c.emoji+' '+c.nome, fmt(val), pct+'%'];
+      }),
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9.5, cellPadding: { top: 9, bottom: 9, left: 8, right: 8 } },
+      headStyles: { fillColor: [108,99,255], textColor: 255 },
+      alternateRowStyles: { fillColor: [248,248,252] },
+      columnStyles: { 1: { cellWidth: 110 }, 2: { cellWidth: 130 } },
+      didDrawCell: function(data) {
+        if(data.section === 'body' && data.column.index === 2) {
+          const [catId, val] = catArr[data.row.index];
+          const color = hexParaRgb(CAT_COLORS[catId] || '#b2bec3');
+          const barMaxW = data.cell.width - 34;
+          const barW = Math.max((val/maxCatVal) * barMaxW, 3);
+          const barY = data.cell.y + data.cell.height/2 - 3;
+          doc.setFillColor(225,227,235);
+          doc.roundedRect(data.cell.x + 30, barY, barMaxW, 6, 3, 3, 'F');
+          doc.setFillColor(color.r, color.g, color.b);
+          doc.roundedRect(data.cell.x + 30, barY, barW, 6, 3, 3, 'F');
+        }
+      }
+    });
+    y = doc.lastAutoTable.finalY + 22;
+  } else {
+    doc.setFont('helvetica','normal'); doc.setFontSize(11);
+    doc.text('Nenhum lançamento neste mês.', margin, y);
+    y += 20;
+  }
 
-    if(y > 680) { doc.addPage(); y = 50; }
+  // --- INVESTIMENTOS (resumo rápido no topo, estilo documento) ---
+  doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(140);
+  doc.text('INVESTIMENTOS', margin, y); y += 8;
+  doc.setTextColor(0);
+  doc.setDrawColor(225,227,235);
+  doc.setFillColor(248,248,252);
+  doc.roundedRect(margin, y, contentW, 34, 8, 8, 'FD');
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(90);
+  doc.text('Total investido', margin+14, y+21);
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(0,150,136);
+  doc.text(fmt(totalInvestido), pageW-margin-14, y+21, { align: 'right' });
+  doc.setTextColor(0);
+  y += 50;
+
+  if(y > 680) { doc.addPage(); y = 50; }
 
     // --- PLANEJAMENTOS ---
     if(_config.plans && _config.plans.length > 0) {
@@ -2502,18 +2583,27 @@ function exportarRelatorioPDF() {
       doc.text('Nenhum investimento cadastrado.', margin, y+14);
     }
 
-    // --- RODAPÉ em todas as páginas ---
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i=1;i<=pageCount;i++) {
-      doc.setPage(i);
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text('MeuGasto — relatório gerado automaticamente', margin, 820);
-      doc.text('Página '+i+'/'+pageCount, pageW-margin-60, 820);
-      doc.setTextColor(0);
-    }
+  // --- RODAPÉ em todas as páginas ---
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++) {
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(150);
+    doc.text('MeuGasto — relatório gerado automaticamente', margin, 820);
+    doc.text('Página '+i+'/'+pageCount, pageW-margin-60, 820);
+    doc.setTextColor(0);
+  }
 
-    const nomeArq = 'meugasto-relatorio-' + currentMonth + '.pdf';
-    doc.save(nomeArq);
+  return doc;
+}
+
+function nomeArquivoRelatorio() {
+  return 'meugasto-relatorio-' + currentMonth + '.pdf';
+}
+
+function exportarRelatorioPDF() {
+  try {
+    const doc = gerarRelatorioPDFDoc();
+    doc.save(nomeArquivoRelatorio());
     toast('✅ Relatório PDF gerado!');
   } catch(e) {
     toast('Erro ao gerar PDF: ' + e.message.slice(0,80), true);
@@ -2547,33 +2637,54 @@ function exportarBackup() {
 }
 
 async function compartilharWhatsapp() {
+  let doc;
   try {
-    const dados = montarBackupObj();
-    const json = JSON.stringify(dados, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const file = new File([blob], nomeArquivoBackup(), { type: 'application/json' });
+    doc = gerarRelatorioPDFDoc();
+  } catch(e) {
+    toast('Erro ao gerar relatório: ' + e.message.slice(0,80), true);
+    console.error(e);
+    return;
+  }
 
-    // Tenta usar o Web Share API nativo (mobile) para compartilhar o arquivo diretamente,
+  const nomeArq = nomeArquivoRelatorio();
+  const mesLabel = document.getElementById('month-label') ? document.getElementById('month-label').textContent : currentMonth;
+  const textoMsg = '📊 Relatório de gastos do MeuGasto — ' + mesLabel;
+
+  try {
+    // Tenta usar o Web Share API nativo (mobile) para compartilhar o PDF diretamente,
     // permitindo escolher o WhatsApp na folha de compartilhamento do celular.
+    const blob = doc.output('blob');
+    const file = new File([blob], nomeArq, { type: 'application/pdf' });
+
     if(navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: 'Backup MeuGasto',
-        text: 'Backup dos meus gastos (MeuGasto) — ' + new Date().toLocaleDateString('pt-BR')
-      });
-      toast('✅ Backup enviado para compartilhamento!');
+      await navigator.share({ files: [file], title: 'Relatório MeuGasto', text: textoMsg });
+      toast('✅ Relatório enviado para compartilhamento!');
       return;
     }
 
-    // Fallback: navegadores desktop não permitem enviar arquivo direto pro WhatsApp Web.
-    // Baixa o arquivo e abre o WhatsApp com uma mensagem de texto explicando para anexar o arquivo.
-    exportarBackup();
-    const msg = encodeURIComponent('📊 Backup do MeuGasto (' + new Date().toLocaleDateString('pt-BR') + '). O arquivo ' + nomeArquivoBackup() + ' acabou de ser baixado — anexe-o aqui no WhatsApp.');
-    window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
-    toast('Arquivo baixado — anexe-o na conversa do WhatsApp que abriu');
+    if(navigator.share) {
+      // Alguns navegadores têm share() mas sem suporte a arquivos — compartilha só o texto
+      // e baixa o PDF em paralelo para o usuário anexar manualmente.
+      doc.save(nomeArq);
+      await navigator.share({ title: 'Relatório MeuGasto', text: textoMsg + ' — arquivo ' + nomeArq + ' baixado, anexe-o na conversa.' });
+      toast('PDF baixado — anexe-o na conversa que abriu');
+      return;
+    }
+
+    throw new Error('sem-web-share');
   } catch(e) {
-    if(e.name === 'AbortError') return; // usuário cancelou o compartilhamento
-    toast('Erro ao compartilhar: '+e.message.slice(0,60), true);
+    if(e && e.name === 'AbortError') return; // usuário cancelou o compartilhamento
+    // Fallback: navegador desktop sem Web Share API (ex: WhatsApp Web não aceita anexo por link).
+    // Baixa o PDF e abre o WhatsApp com uma mensagem de texto explicando para anexar o arquivo.
+    try {
+      doc.save(nomeArq);
+      const msg = encodeURIComponent(textoMsg + '. O arquivo ' + nomeArq + ' acabou de ser baixado — anexe-o aqui no WhatsApp.');
+      window.open('https://api.whatsapp.com/send?text=' + msg, '_blank');
+      toast('PDF baixado — anexe-o na conversa do WhatsApp que abriu');
+    } catch(e2) {
+      toast('Erro ao compartilhar: ' + e2.message.slice(0,60), true);
+      console.error(e2);
+    }
   }
 }
 
