@@ -10,6 +10,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MeuGasto">
 <link rel="apple-touch-icon" href="./icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -823,6 +825,7 @@
     <div class="supabase-status-box">
       <p id="backup-info">Seus dados ficam salvos apenas neste dispositivo (localStorage). Faça backup regularmente para não perder nada.</p>
     </div>
+    <button class="btn-primary" onclick="exportarRelatorioPDF()" style="margin-top:12px;">🧾 Exportar relatório em PDF</button>
     <button class="btn-primary" onclick="exportarBackup()" style="margin-top:12px;">⬇️ Exportar backup (.json)</button>
     <button class="btn-whatsapp" onclick="compartilharWhatsapp()">📲 Compartilhar backup via WhatsApp</button>
     <button class="btn-import" onclick="document.getElementById('import-file').click()">⬆️ Importar backup</button>
@@ -2251,6 +2254,278 @@ function nomeArquivoBackup() {
   const d = new Date();
   const iso = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   return 'meugasto-backup-'+iso+'.json';
+}
+
+// ===================== RELATÓRIO EM PDF =====================
+function desenharPizza(catArr, total) {
+  // Desenha um gráfico de pizza num canvas offscreen e devolve o dataURL PNG.
+  const size = 480;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const cx = size/2, cy = size/2, r = size/2 - 10;
+  if(total <= 0 || catArr.length === 0) {
+    ctx.fillStyle = '#8890b0';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sem lançamentos no período', cx, cy);
+    return canvas.toDataURL('image/png');
+  }
+  let start = -Math.PI/2;
+  catArr.forEach(([catId, val]) => {
+    const slice = (val/total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, start + slice);
+    ctx.closePath();
+    ctx.fillStyle = CAT_COLORS[catId] || '#b2bec3';
+    ctx.fill();
+    start += slice;
+  });
+  // círculo central (efeito donut) com o total
+  ctx.beginPath();
+  ctx.arc(cx, cy, r*0.55, 0, Math.PI*2);
+  ctx.fillStyle = '#1a1d27';
+  ctx.fill();
+  ctx.fillStyle = '#e8eaf0';
+  ctx.font = 'bold 24px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Total', cx, cy - 8);
+  ctx.font = '18px sans-serif';
+  ctx.fillText(fmt(total), cx, cy + 18);
+  return canvas.toDataURL('image/png');
+}
+
+function desenharBarrasPlanejamento(plans, lans) {
+  if(!plans.length) return null;
+  const w = 700, barH = 34, gap = 14, padTop = 10, padBottom = 10;
+  const h = padTop + padBottom + plans.length * (barH + gap);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.font = '15px sans-serif';
+  const maxVal = Math.max(...plans.map(p => Math.max(p.limite, lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0))), 1);
+  const labelW = 170, barMaxW = w - labelW - 90;
+  plans.forEach((p, i) => {
+    const spent = lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0);
+    const y = padTop + i*(barH+gap);
+    const color = CAT_COLORS[p.cat] || '#6c63ff';
+    const over = p.limite > 0 && spent > p.limite;
+    // fundo (limite)
+    const bgW = p.limite > 0 ? (p.limite/maxVal)*barMaxW : barMaxW*0.05;
+    ctx.fillStyle = '#2e3250';
+    ctx.fillRect(labelW, y, bgW, barH);
+    // barra gasto
+    const fillW = Math.min((spent/maxVal)*barMaxW, barMaxW);
+    ctx.fillStyle = over ? '#ff6b6b' : color;
+    ctx.fillRect(labelW, y, fillW, barH);
+    // rótulo
+    ctx.fillStyle = '#e8eaf0';
+    ctx.textAlign = 'left';
+    ctx.fillText((p.emoji||'')+' '+p.nome, 0, y + barH/2 + 5);
+    ctx.textAlign = 'left';
+    ctx.font = '13px sans-serif';
+    ctx.fillText(fmtShort(spent)+' / '+(p.limite>0?fmtShort(p.limite):'—'), labelW + barMaxW + 10, y + barH/2 + 5);
+    ctx.font = '15px sans-serif';
+  });
+  return canvas.toDataURL('image/png');
+}
+
+function exportarRelatorioPDF() {
+  try {
+    if(!window.jspdf || !window.jspdf.jsPDF) { toast('Erro: biblioteca de PDF não carregou (verifique sua conexão)', true); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 40;
+    let y = 50;
+
+    const lans = getLancamentos(currentMonth);
+    const total = lans.reduce((s,l)=>s+l.valor,0);
+    const catTotals = {};
+    lans.forEach(l => { catTotals[l.cat] = (catTotals[l.cat]||0) + l.valor; });
+    const catArr = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+    const mesLabel = document.getElementById('month-label') ? document.getElementById('month-label').textContent : currentMonth;
+
+    // --- CABEÇALHO ---
+    doc.setFont('helvetica','bold'); doc.setFontSize(20);
+    doc.text('MeuGasto — Relatório do mês', margin, y);
+    y += 22;
+    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(100);
+    doc.text('Período: ' + mesLabel + '   •   Gerado em: ' + new Date().toLocaleDateString('pt-BR'), margin, y);
+    doc.setTextColor(0);
+    y += 24;
+
+    // --- TOTAL DO MÊS ---
+    doc.setFillColor(108,99,255);
+    doc.roundedRect(margin, y, pageW-2*margin, 50, 8, 8, 'F');
+    doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+    doc.text('GASTO TOTAL NO MÊS', margin+16, y+20);
+    doc.setFontSize(20);
+    doc.text(fmt(total), margin+16, y+40);
+    doc.setTextColor(0);
+    y += 70;
+
+    // --- MAIOR GASTO ---
+    if(catArr.length > 0) {
+      const [topId, topVal] = catArr[0];
+      const topCat = CATS.find(c=>c.id===topId) || {emoji:'📦', nome:topId};
+      const pct = total>0 ? Math.round(topVal/total*100) : 0;
+      doc.setFont('helvetica','bold'); doc.setFontSize(12);
+      doc.text('🔥 Maior gasto do mês', margin, y); y += 16;
+      doc.setFont('helvetica','normal'); doc.setFontSize(11);
+      doc.text(topCat.emoji+' '+topCat.nome+' — '+fmt(topVal)+' ('+pct+'% do total)', margin, y);
+      y += 24;
+    }
+
+    // --- GRÁFICO DE CATEGORIAS ---
+    if(catArr.length > 0) {
+      doc.setFont('helvetica','bold'); doc.setFontSize(13);
+      doc.text('Gastos por categoria', margin, y); y += 10;
+      const imgPizza = desenharPizza(catArr, total);
+      const imgSize = 170;
+      doc.addImage(imgPizza, 'PNG', margin, y, imgSize, imgSize);
+      // legenda ao lado
+      let ly = y + 6;
+      const lx = margin + imgSize + 24;
+      doc.setFontSize(10);
+      catArr.forEach(([catId,val]) => {
+        const c = CATS.find(x=>x.id===catId) || {emoji:'📦', nome:catId};
+        const color = CAT_COLORS[catId] || '#b2bec3';
+        const rgb = hexParaRgb(color);
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        doc.rect(lx, ly-8, 8, 8, 'F');
+        const pct = total>0 ? Math.round(val/total*100) : 0;
+        doc.setFont('helvetica','normal');
+        doc.text(c.emoji+' '+c.nome+' — '+fmt(val)+' ('+pct+'%)', lx+12, ly);
+        ly += 14;
+        if(ly > y + imgSize + 40) return;
+      });
+      y += imgSize + 20;
+    } else {
+      doc.setFont('helvetica','normal'); doc.setFontSize(11);
+      doc.text('Nenhum lançamento neste mês.', margin, y);
+      y += 20;
+    }
+
+    if(y > 680) { doc.addPage(); y = 50; }
+
+    // --- PLANEJAMENTOS ---
+    if(_config.plans && _config.plans.length > 0) {
+      doc.setFont('helvetica','bold'); doc.setFontSize(13);
+      doc.text('Planejamentos do mês', margin, y); y += 8;
+      const imgBar = desenharBarrasPlanejamento(_config.plans, lans);
+      if(imgBar) {
+        const bw = pageW - 2*margin;
+        const bh = bw * (0.14 * _config.plans.length);
+        if(y + bh > 780) { doc.addPage(); y = 50; }
+        doc.addImage(imgBar, 'PNG', margin, y, bw, Math.min(bh, 240));
+        y += Math.min(bh, 240) + 10;
+      }
+      const rows = _config.plans.map(p => {
+        const spent = lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0);
+        const dentro = p.limite<=0 ? '—' : (spent<=p.limite ? '✅ Dentro do planejado' : '⚠️ Acima do planejado');
+        return [p.emoji+' '+p.nome, fmt(spent), p.limite>0?fmt(p.limite):'—', dentro];
+      });
+      doc.autoTable({
+        startY: y,
+        head: [['Planejamento','Gasto','Limite','Situação']],
+        body: rows,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [108,99,255] }
+      });
+      y = doc.lastAutoTable.finalY + 24;
+    } else {
+      doc.setFont('helvetica','italic'); doc.setFontSize(11); doc.setTextColor(120);
+      doc.text('Nenhum planejamento cadastrado para este mês.', margin, y);
+      doc.setTextColor(0);
+      y += 20;
+    }
+
+    if(y > 680) { doc.addPage(); y = 50; }
+
+    // --- CARTÕES ---
+    doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('Gastos com cartões (fatura do mês)', margin, y); y += 6;
+    if(_cartoes.length > 0) {
+      const rowsCartao = _cartoes.map(c => {
+        const fatura = getComprasCartao(c.id, currentMonth).reduce((s,x)=>s+x.valor,0);
+        const pct = c.limite>0 ? Math.round(fatura/c.limite*100) : 0;
+        return [c.emoji+' '+c.nome, fmt(fatura), c.limite>0?fmt(c.limite):'—', c.limite>0?(pct+'%'):'—'];
+      });
+      doc.autoTable({
+        startY: y+6,
+        head: [['Cartão','Fatura do mês','Limite','% usado']],
+        body: rowsCartao,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [69,170,242] }
+      });
+      y = doc.lastAutoTable.finalY + 24;
+    } else {
+      doc.setFont('helvetica','normal'); doc.setFontSize(11);
+      doc.text('Nenhum cartão cadastrado.', margin, y+14);
+      y += 30;
+    }
+
+    if(y > 680) { doc.addPage(); y = 50; }
+
+    // --- INVESTIMENTOS ---
+    doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('Investimentos (carteira total)', margin, y); y += 6;
+    if(_investimentos.length > 0) {
+      const porTipo = {};
+      _investimentos.forEach(i => { porTipo[i.tipo] = (porTipo[i.tipo]||0) + i.valor; });
+      const totalInv = _investimentos.reduce((s,i)=>s+i.valor,0);
+      const rowsInv = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).map(([tipoId,val]) => {
+        const tipo = INV_TIPOS[tipoId] || {emoji:'💼', nome:tipoId};
+        const pct = totalInv>0 ? Math.round(val/totalInv*100) : 0;
+        return [tipo.emoji+' '+tipo.nome, fmt(val), pct+'%'];
+      });
+      doc.autoTable({
+        startY: y+6,
+        head: [['Tipo','Valor aplicado','% da carteira']],
+        body: rowsInv,
+        foot: [['Total', fmt(totalInv), '100%']],
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [0,212,170] },
+        footStyles: { fillColor: [34,38,58], textColor: [232,234,240], fontStyle: 'bold' }
+      });
+      y = doc.lastAutoTable.finalY + 10;
+      doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.setTextColor(120);
+      doc.text('* Valor total investido até hoje (não é limitado ao mês selecionado).', margin, y);
+      doc.setTextColor(0);
+    } else {
+      doc.setFont('helvetica','normal'); doc.setFontSize(11);
+      doc.text('Nenhum investimento cadastrado.', margin, y+14);
+    }
+
+    // --- RODAPÉ em todas as páginas ---
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pageCount;i++) {
+      doc.setPage(i);
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text('MeuGasto — relatório gerado automaticamente', margin, 820);
+      doc.text('Página '+i+'/'+pageCount, pageW-margin-60, 820);
+      doc.setTextColor(0);
+    }
+
+    const nomeArq = 'meugasto-relatorio-' + currentMonth + '.pdf';
+    doc.save(nomeArq);
+    toast('✅ Relatório PDF gerado!');
+  } catch(e) {
+    toast('Erro ao gerar PDF: ' + e.message.slice(0,80), true);
+    console.error(e);
+  }
+}
+
+function hexParaRgb(hex) {
+  hex = hex.replace('#','');
+  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const num = parseInt(hex,16);
+  return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
 }
 
 function exportarBackup() {
