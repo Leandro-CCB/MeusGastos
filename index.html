@@ -930,7 +930,7 @@
     </div>
     <button class="btn-primary" onclick="exportarBackup()" style="margin-top:12px;">⬇️ Exportar backup (.json)</button>
     <button class="btn-import" onclick="document.getElementById('import-file').click()">⬆️ Importar backup</button>
-    <input type="file" id="import-file" class="file-input-hidden" accept="application/json" onchange="importarBackup(event)">
+    <input type="file" id="import-file" class="file-input-hidden" accept="application/json,.json,.txt,text/plain" onchange="importarBackup(event)">
     <button class="btn-whatsapp" onclick="compartilharBackupWhatsapp()" style="margin-top:10px;">📲 Enviar backup pelo WhatsApp</button>
   </div>
 
@@ -2633,13 +2633,14 @@ async function compartilharBackupWhatsapp() {
   let blob, file;
   try {
     const dados = montarBackupObj();
-    // Usamos 'text/plain' como mime type do Blob/File porque muitos navegadores (principalmente
-    // no Android/iOS) não aceitam 'application/json' na Web Share API de arquivos — o
-    // navigator.canShare retorna false e cai no fallback pior (baixa o arquivo e só compartilha
-    // texto). 'text/plain' é aceito de forma bem mais ampla e o conteúdo continua sendo o JSON
-    // válido; a extensão do arquivo (.json) é mantida para a importação funcionar normalmente.
+    // A Web Share API de arquivos, na maioria dos navegadores mobile (Chrome/Android, Safari/iOS),
+    // só libera o compartilhamento direto de arquivo para uma lista de EXTENSÕES conhecidas como
+    // seguras — .json não está nessa lista, então o navegador ignora o arquivo e cai no fallback
+    // (baixa o arquivo + abre o WhatsApp Web só com texto). Usando extensão .txt (que está na
+    // lista) o conteúdo (JSON válido) é compartilhado como arquivo de verdade, igual ao PDF do
+    // relatório. A importação continua funcionando normalmente com esse arquivo.
     blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'text/plain' });
-    file = new File([blob], nomeArquivoBackup(), { type: 'text/plain' });
+    file = new File([blob], nomeArquivoBackup().replace(/\.json$/, '.txt'), { type: 'text/plain' });
   } catch(e) {
     toast('Erro ao preparar backup: ' + e.message.slice(0,80), true);
     return;
