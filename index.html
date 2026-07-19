@@ -873,6 +873,7 @@
     <div class="form-row">
       <label>Valor pago (R$)</label>
       <input type="number" id="fxp-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+      <div id="fxp-hint" style="font-size:0.7rem;color:var(--text2);margin-top:4px;"></div>
     </div>
     <div class="form-row">
       <label>Data do pagamento</label>
@@ -2452,12 +2453,31 @@ function excluirContaFixa(id) {
 }
 
 let _fixaPagandoId = null;
+// Calcula a média dos últimos N meses pagos de uma conta fixa (útil para contas de valor
+// variável, como água e luz), considerando apenas meses anteriores ao mês de referência.
+function mediaContaFixa(conta, mesRef, n) {
+  n = n || 3;
+  const pagamentos = conta.pagamentos || {};
+  const meses = Object.keys(pagamentos)
+    .filter(m => m < mesRef)
+    .sort()
+    .reverse()
+    .slice(0, n);
+  if (!meses.length) return null;
+  const soma = meses.reduce((s, m) => s + (pagamentos[m].valor || 0), 0);
+  return { valor: soma / meses.length, qtdMeses: meses.length };
+}
+
 function abrirModalPagarFixa(id) {
   _fixaPagandoId = id;
   const conta = _contasFixas.find(c => c.id === id);
+  const media = conta ? mediaContaFixa(conta, currentMonth) : null;
   document.getElementById('fxp-id').value = id;
-  document.getElementById('fxp-valor').value = conta && conta.valorEstimado ? conta.valorEstimado : '';
+  document.getElementById('fxp-valor').value = media ? media.valor.toFixed(2) : (conta && conta.valorEstimado ? conta.valorEstimado : '');
   document.getElementById('fxp-data').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('fxp-hint').textContent = media
+    ? '💡 Valor sugerido: média dos últimos ' + media.qtdMeses + ' mês(es) pago(s). Ajuste se necessário.'
+    : '';
   document.getElementById('fixa-pay-modal').classList.add('show');
 }
 function fecharModalPagarFixa(e) { if (e.target.id === 'fixa-pay-modal') fecharModalPagarFixaForce(); }
@@ -2538,13 +2558,17 @@ function renderContasFixasPage() {
       badge = '<span class="fixa-badge aberto">🟡 Vence dia ' + conta.dia + '</span>';
       acaoBtn = '<button class="fixa-btn-pagar" onclick="abrirModalPagarFixa(\'' + conta.id + '\')">Marcar pago</button>';
     }
+    const media = mediaContaFixa(conta, currentMonth);
+    let valorRef = '';
+    if (media) valorRef = ' • ~' + fmt(media.valor) + ' (média ' + media.qtdMeses + 'm)';
+    else if (conta.valorEstimado) valorRef = ' • ~' + fmt(conta.valorEstimado);
     return `
       <div class="fixa-item">
         <div class="fixa-top">
           <div class="fixa-icon">${ci.emoji}</div>
           <div class="fixa-info">
             <div class="fixa-nome">${escapeHtml(conta.nome)}</div>
-            <div class="fixa-meta">${escapeHtml(ci.nome)}${conta.valorEstimado ? ' • ~' + fmt(conta.valorEstimado) : ''}</div>
+            <div class="fixa-meta">${escapeHtml(ci.nome)}${valorRef}</div>
           </div>
           <div class="fixa-actions">
             <button onclick="abrirFormFixa('${conta.id}')">✏️</button>
@@ -2609,8 +2633,13 @@ async function compartilharBackupWhatsapp() {
   let blob, file;
   try {
     const dados = montarBackupObj();
-    blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
-    file = new File([blob], nomeArquivoBackup(), { type: 'application/json' });
+    // Usamos 'text/plain' como mime type do Blob/File porque muitos navegadores (principalmente
+    // no Android/iOS) não aceitam 'application/json' na Web Share API de arquivos — o
+    // navigator.canShare retorna false e cai no fallback pior (baixa o arquivo e só compartilha
+    // texto). 'text/plain' é aceito de forma bem mais ampla e o conteúdo continua sendo o JSON
+    // válido; a extensão do arquivo (.json) é mantida para a importação funcionar normalmente.
+    blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'text/plain' });
+    file = new File([blob], nomeArquivoBackup(), { type: 'text/plain' });
   } catch(e) {
     toast('Erro ao preparar backup: ' + e.message.slice(0,80), true);
     return;
