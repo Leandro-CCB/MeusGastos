@@ -2722,12 +2722,7 @@ function iconeCategoriaDataUrl(catId, emoji, corHex) {
   canvas.width = size*SCALE; canvas.height = size*SCALE;
   const ctx = canvas.getContext('2d');
   ctx.scale(SCALE, SCALE);
-  const rgb = hexParaRgb(corHex || '#b2bec3');
-  ctx.beginPath();
-  ctx.arc(size/2, size/2, size/2, 0, Math.PI*2);
-  ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.18)`;
-  ctx.fill();
-  ctx.font = (size*0.55) + 'px sans-serif';
+  ctx.font = (size*0.72) + 'px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(emoji || '📦', size/2, size/2 + 1);
@@ -2757,17 +2752,9 @@ function desenharIconesPlanejamento(plans, lans) {
     const cy = padTop + row*cellH + iconSize/2;
     const spent = lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0);
     const over = p.limite > 0 && spent > p.limite;
-    const color = over ? '#ff6b6b' : (CAT_COLORS[p.cat] || '#6c63ff');
-    const rgb = hexParaRgb(color);
 
-    // fundo circular do ícone
-    ctx.beginPath();
-    ctx.arc(cx, cy, iconSize/2, 0, Math.PI*2);
-    ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},0.15)`;
-    ctx.fill();
-
-    // emoji do planejamento
-    ctx.font = (iconSize*0.48) + 'px sans-serif';
+    // emoji do planejamento (sem fundo circular)
+    ctx.font = (iconSize*0.62) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#000';
@@ -2967,15 +2954,26 @@ function gerarRelatorioPDFDoc() {
       const rows = _config.plans.map(p => {
         const spent = lans.filter(l=>l.cat===p.cat).reduce((s,l)=>s+l.valor,0);
         const dentro = p.limite<=0 ? '—' : (spent<=p.limite ? 'Dentro do planejado' : 'Acima do planejado');
-        return [p.nome, fmt(spent), p.limite>0?fmt(p.limite):'—', dentro];
+        return ['', p.nome, fmt(spent), p.limite>0?fmt(p.limite):'—', dentro];
       });
       doc.autoTable({
         startY: y,
-        head: [['Planejamento','Gasto','Limite','Situação']],
+        head: [['','Planejamento','Gasto','Limite','Situação']],
         body: rows,
         margin: { left: margin, right: margin },
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [108,99,255] }
+        styles: { fontSize: 10, valign: 'middle' },
+        headStyles: { fillColor: [108,99,255] },
+        columnStyles: { 0: { cellWidth: 26 } },
+        didDrawCell: function(data) {
+          if(data.section === 'body' && data.column.index === 0) {
+            const p = _config.plans[data.row.index];
+            const iconUrl = iconeCategoriaDataUrl('plan_'+p.id, p.emoji, CAT_COLORS[p.cat] || '#6c63ff');
+            const iconSize = 16;
+            const ix = data.cell.x + (data.cell.width - iconSize)/2;
+            const iy = data.cell.y + (data.cell.height - iconSize)/2;
+            doc.addImage(iconUrl, 'PNG', ix, iy, iconSize, iconSize);
+          }
+        }
       });
       y = doc.lastAutoTable.finalY + 24;
     } else {
