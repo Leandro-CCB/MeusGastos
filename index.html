@@ -891,8 +891,7 @@
     <button class="btn-toggle-add" onclick="toggleAddPlan()">➕ Adicionar planejamento</button>
     <div class="add-plan-form" id="add-plan-form" style="display:none; margin-top:12px;">
       <div class="add-plan-row">
-        <input type="text" class="emoji-pick" id="new-plan-emoji" placeholder="🏷️" maxlength="2">
-        <input type="text" id="new-plan-nome" placeholder="Nome do planejamento">
+        <input type="text" id="new-plan-nome" placeholder="Nome do planejamento" style="width:100%;">
       </div>
       <div class="add-plan-row">
         <select id="new-plan-cat">
@@ -2292,16 +2291,16 @@ function toggleAddPlan() {
 }
 
 function adicionarPlan() {
-  const emoji = document.getElementById('new-plan-emoji').value.trim() || '🏷️';
   const nome  = document.getElementById('new-plan-nome').value.trim();
   const cat   = document.getElementById('new-plan-cat').value;
   const limite = parseFloat(document.getElementById('new-plan-valor').value) || 0;
   if(!nome) { toast('Informe o nome do planejamento!', true); return; }
   if(!cat)  { toast('Selecione uma categoria!', true); return; }
   if(limite <= 0) { toast('Informe o limite!', true); return; }
+  const catObj = CATS.find(c=>c.id===cat);
+  const emoji = catObj ? catObj.emoji : '🏷️';
   _config.plans.push({ id: 'p'+Date.now(), emoji, nome, cat, limite });
   salvarConfigLS();
-  document.getElementById('new-plan-emoji').value = '';
   document.getElementById('new-plan-nome').value = '';
   document.getElementById('new-plan-cat').value = '';
   document.getElementById('new-plan-valor').value = '';
