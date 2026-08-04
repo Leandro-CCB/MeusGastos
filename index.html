@@ -455,6 +455,19 @@
   .inv-item-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 0.9rem; opacity: .6; padding: 4px; }
   .inv-item-del:hover { opacity: 1; color: var(--warn); }
   .inv-item-extra { font-size: 0.72rem; color: var(--accent2); margin-top: 2px; }
+  .rec-total-card { background: linear-gradient(135deg,#1a3a2e,#12241d); border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+  .rec-total-card .label { font-size: 0.75rem; opacity: .75; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .rec-total-card .value { font-size: 2rem; font-weight: 800; margin: 4px 0; color: #4ade80; }
+  .rec-item-icon { background: rgba(74,222,128,.15); }
+  .rec-item-val { color: #4ade80 !important; }
+  .saldo-card { display:flex; gap:10px; margin-bottom:16px; }
+  .saldo-box { flex:1; background: var(--surface2); border-radius: 12px; padding: 12px 14px; }
+  .saldo-box .label { font-size: 0.68rem; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
+  .saldo-box .value { font-size: 1.05rem; font-weight: 700; margin-top: 4px; }
+  .saldo-box.receita .value { color: #4ade80; }
+  .saldo-box.despesa .value { color: var(--warn, #ff6b6b); }
+  .saldo-box.saldo .value.pos { color: #4ade80; }
+  .saldo-box.saldo .value.neg { color: var(--warn, #ff6b6b); }
 
   .inv-estimativa-box {
     background: rgba(0,212,170,.1); border: 1px solid rgba(0,212,170,.35);
@@ -681,6 +694,21 @@
     <div class="sub" id="dash-sub">0 lançamentos este mês</div>
   </div>
 
+  <div class="saldo-card">
+    <div class="saldo-box receita">
+      <div class="label">Receitas</div>
+      <div class="value" id="dash-receitas">R$ 0,00</div>
+    </div>
+    <div class="saldo-box despesa">
+      <div class="label">Despesas</div>
+      <div class="value" id="dash-despesas">R$ 0,00</div>
+    </div>
+    <div class="saldo-box saldo">
+      <div class="label">Saldo</div>
+      <div class="value" id="dash-saldo">R$ 0,00</div>
+    </div>
+  </div>
+
   <!-- Top segmento -->
   <div id="dash-top-seg"></div>
 
@@ -732,6 +760,37 @@
 </div>
 
 <!-- ==================== CARTÕES DE CRÉDITO ==================== -->
+<div class="page" id="page-receitas">
+  <div class="rec-total-card">
+    <div class="label">Receitas em</div>
+    <div class="value" id="rec-total">R$ 0,00</div>
+  </div>
+
+  <div class="form-card">
+    <div class="form-card-title">➕ Nova receita</div>
+    <div class="form-row">
+      <label>Valor (R$)</label>
+      <input type="number" id="rc-valor" placeholder="0,00" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <label>Descrição</label>
+      <input type="text" id="rc-desc" placeholder="Ex: Salário, Freela do site, Diária">
+    </div>
+    <div class="form-row">
+      <label>Origem</label>
+      <div class="cat-grid" id="rc-cat-grid"></div>
+    </div>
+    <div class="form-row">
+      <label>Data</label>
+      <input type="date" id="rc-data">
+    </div>
+    <button class="btn-primary" onclick="salvarReceita()">Salvar receita</button>
+  </div>
+
+  <div class="section-title">Receitas do mês</div>
+  <div id="rec-list"></div>
+</div>
+
 <div class="page" id="page-cartoes">
   <div class="section-title">Meus cartões</div>
   <div id="cartoes-list"></div>
@@ -981,6 +1040,9 @@
   </div>
   <div class="nav-item" onclick="goPage('lancamentos',this)" id="nav-lancamentos">
     <span class="nav-icon">📋</span>Lançam.
+  </div>
+  <div class="nav-item" onclick="goPage('receitas',this)" id="nav-receitas">
+    <span class="nav-icon">💵</span>Receita
   </div>
   <div class="nav-item" onclick="goPage('cartoes',this)" id="nav-cartoes">
     <span class="nav-icon">💳</span>Cartões
@@ -1252,7 +1314,8 @@ const LS_KEYS = {
   cartoes: 'meugasto_cartoes',
   compras: 'meugasto_compras_cartao',
   investimentos: 'meugasto_investimentos',
-  contasFixas: 'meugasto_contas_fixas'
+  contasFixas: 'meugasto_contas_fixas',
+  receitas: 'meugasto_receitas'
 };
 
 function lsGet(key, fallback) {
@@ -1300,6 +1363,13 @@ const CAT_COLORS = {
   saude:'#fd9644', lazer:'#a55eea', transporte:'#4bcffa',
   casa:'#fd79a8', roupas:'#fdcb6e', educacao:'#6c5ce7', outros:'#b2bec3'
 };
+const REC_CATS = [
+  { id:'salario',   emoji:'💼', nome:'Salário' },
+  { id:'servico',   emoji:'🛠️', nome:'Serviço' },
+  { id:'informal',  emoji:'🤝', nome:'Informal' },
+  { id:'freela',    emoji:'💻', nome:'Freelance' },
+  { id:'outros_rec',emoji:'📦', nome:'Outros' },
+];
 const INV_TIPOS = {
   cdb: { emoji:'🏦', nome:'CDB' },
   tesouro: { emoji:'📜', nome:'Tesouro Direto' },
@@ -1328,6 +1398,8 @@ let selectedCartaoId = '';
 let isCartaoLancamento = false;
 let pagtoTipo = 'avista';
 let selectedCartaoLancamento = '';
+let _receitas = []; // { id, valor, desc, cat, data }
+let selectedRecCat = '';
 
 function fmt(v) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1349,6 +1421,7 @@ function loadAllFromLocal() {
   _compras = lsGet(LS_KEYS.compras, []);
   _investimentos = lsGet(LS_KEYS.investimentos, []);
   _contasFixas = lsGet(LS_KEYS.contasFixas, []);
+  _receitas = lsGet(LS_KEYS.receitas, []);
   migrarComprasAntigasParaLancamentos();
   setSyncStatus('ok', 'salvo');
 }
@@ -1479,6 +1552,7 @@ function salvarCartoesLS() { lsSet(LS_KEYS.cartoes, _cartoes); }
 function salvarComprasLS() { lsSet(LS_KEYS.compras, _compras); }
 function salvarInvestimentosLS() { lsSet(LS_KEYS.investimentos, _investimentos); }
 function salvarContasFixasLS() { lsSet(LS_KEYS.contasFixas, _contasFixas); }
+function salvarReceitasLS() { lsSet(LS_KEYS.receitas, _receitas); }
 
 // ===================== MONTH NAV =====================
 function initMonth() {
@@ -1499,6 +1573,7 @@ function renderMonth() {
   renderAllTx();
   renderCartoesPage();
   renderContasFixasPage();
+  renderReceitasPage();
 }
 
 // ===================== PAGES =====================
@@ -1510,6 +1585,7 @@ function goPage(id, el) {
   if(el) el.classList.add('active');
   if(id==='dashboard') renderDashboard();
   if(id==='lancamentos') renderAllTx();
+  if(id==='receitas') { initRecForm(); renderReceitasPage(); }
   if(id==='config') loadConfigUI();
   if(id==='lancar') initForm();
   if(id==='cartoes') renderCartoesPage();
@@ -1526,6 +1602,18 @@ function getLancamentos(month) {
 function renderDashboard() {
   const lans = getLancamentos(currentMonth);
   const total = lans.reduce((s,l)=>s+l.valor,0);
+  const totalReceitas = getReceitas(currentMonth).reduce((s,r)=>s+r.valor,0);
+  const saldo = totalReceitas - total;
+  const elRec = document.getElementById('dash-receitas');
+  const elDesp = document.getElementById('dash-despesas');
+  const elSaldo = document.getElementById('dash-saldo');
+  if(elRec) elRec.textContent = fmt(totalReceitas);
+  if(elDesp) elDesp.textContent = fmt(total);
+  if(elSaldo) {
+    elSaldo.textContent = fmt(saldo);
+    elSaldo.classList.toggle('pos', saldo>=0);
+    elSaldo.classList.toggle('neg', saldo<0);
+  }
 
   document.getElementById('dash-total').textContent = fmt(total);
   document.getElementById('dash-sub').textContent = lans.length + ' lançamento' + (lans.length!==1?'s':'') + ' em ' + document.getElementById('month-label').textContent;
@@ -2255,6 +2343,88 @@ function removerInvestimento(id) {
   toast('Investimento removido');
 }
 
+// ===================== RECEITAS =====================
+function initRecForm() {
+  const today = new Date();
+  const iso = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const dataInput = document.getElementById('rc-data');
+  if(dataInput) dataInput.value = iso;
+  const grid = document.getElementById('rc-cat-grid');
+  if(!grid) return;
+  grid.innerHTML = REC_CATS.map(c=>`
+    <div class="cat-btn ${selectedRecCat===c.id?'selected':''}" onclick="selectRecCat('${c.id}')">
+      <span class="cat-emoji">${c.emoji}</span>${c.nome}
+    </div>
+  `).join('');
+}
+
+function selectRecCat(id) {
+  selectedRecCat = id;
+  document.querySelectorAll('#rc-cat-grid .cat-btn').forEach(b=>{
+    b.classList.toggle('selected', b.getAttribute('onclick').includes("'"+id+"'"));
+  });
+}
+
+function salvarReceita() {
+  const valor = parseFloat(document.getElementById('rc-valor').value);
+  const desc  = document.getElementById('rc-desc').value.trim();
+  const data_ = document.getElementById('rc-data').value;
+  if(!valor || valor<=0) { toast('Informe o valor!', true); return; }
+  if(!selectedRecCat) { toast('Selecione a origem da receita!', true); return; }
+  if(!data_) { toast('Informe a data!', true); return; }
+
+  _receitas.unshift({ id: uid(), valor, desc, cat: selectedRecCat, data: data_ });
+  salvarReceitasLS();
+  document.getElementById('rc-valor').value = '';
+  document.getElementById('rc-desc').value = '';
+  selectedRecCat = '';
+  initRecForm();
+  renderReceitasPage();
+  renderDashboard();
+  toast('✅ Receita salva!');
+}
+
+function removerReceita(id) {
+  if(!confirm('Remover esta receita?')) return;
+  _receitas = _receitas.filter(r=>r.id!==id);
+  salvarReceitasLS();
+  renderReceitasPage();
+  renderDashboard();
+  toast('Receita removida');
+}
+
+function getReceitas(month) {
+  return _receitas.filter(r => r.data.startsWith(month));
+}
+
+function renderReceitasPage() {
+  const list = document.getElementById('rec-list');
+  if(!list) return;
+  const recs = getReceitas(currentMonth);
+  const total = recs.reduce((s,r)=>s+r.valor,0);
+  const totalEl = document.getElementById('rec-total');
+  if(totalEl) totalEl.textContent = fmt(total);
+
+  const ordenados = [...recs].sort((a,b)=>b.data.localeCompare(a.data));
+  if(ordenados.length===0) {
+    list.innerHTML = '<div class="empty-state"><div class="ei">💵</div>Nenhuma receita neste mês ainda</div>';
+    return;
+  }
+  list.innerHTML = ordenados.map(r=>{
+    const cat = REC_CATS.find(c=>c.id===r.cat) || {emoji:'📦', nome:r.cat};
+    const [y,m,d] = r.data.split('-');
+    return `<div class="inv-item">
+      <div class="inv-item-icon rec-item-icon">${cat.emoji}</div>
+      <div class="inv-item-info">
+        <div class="inv-item-name">${r.desc || cat.nome}</div>
+        <div class="inv-item-meta">${cat.nome} · ${d}/${m}/${y}</div>
+      </div>
+      <div class="inv-item-val rec-item-val">${fmt(r.valor)}</div>
+      <button class="inv-item-del" onclick="removerReceita('${r.id}')">🗑</button>
+    </div>`;
+  }).join('');
+}
+
 // ===================== CONFIG / PLANEJAMENTOS =====================
 function loadConfigUI() {
   renderPlanList();
@@ -2336,7 +2506,7 @@ function limparMes() {
 }
 
 function limparTudo() {
-  if(!confirm('Isso apaga PERMANENTEMENTE todos os dados salvos neste dispositivo (lançamentos, planejamentos, cartões e investimentos). Recomendamos exportar um backup antes. Continuar?')) return;
+  if(!confirm('Isso apaga PERMANENTEMENTE todos os dados salvos neste dispositivo (lançamentos, receitas, planejamentos, cartões e investimentos). Recomendamos exportar um backup antes. Continuar?')) return;
   if(!confirm('Tem certeza mesmo? Essa ação não pode ser desfeita.')) return;
   localStorage.removeItem(LS_KEYS.lancamentos);
   localStorage.removeItem(LS_KEYS.config);
@@ -2344,12 +2514,14 @@ function limparTudo() {
   localStorage.removeItem(LS_KEYS.compras);
   localStorage.removeItem(LS_KEYS.investimentos);
   localStorage.removeItem(LS_KEYS.contasFixas);
+  localStorage.removeItem(LS_KEYS.receitas);
   _lancamentos = [];
   _config = { plans: [], customCats: [] };
   _cartoes = [];
   _compras = [];
   _investimentos = [];
   _contasFixas = [];
+  _receitas = [];
   Object.keys(CAT_COLORS).forEach(k => { if(!CATS_PADRAO.some(c=>c.id===k)) delete CAT_COLORS[k]; });
   rebuildCats();
   renderDashboard();
@@ -2357,6 +2529,7 @@ function limparTudo() {
   renderCartoesPage();
   renderInvestimentosPage();
   renderContasFixasPage();
+  renderReceitasPage();
   loadConfigUI();
   toast('Todos os dados foram apagados');
 }
@@ -2625,7 +2798,8 @@ function montarBackupObj() {
     cartoes: _cartoes,
     compras: _compras,
     investimentos: _investimentos,
-    contasFixas: _contasFixas
+    contasFixas: _contasFixas,
+    receitas: _receitas
   };
 }
 
@@ -3217,17 +3391,20 @@ function importarBackup(event) {
       _compras = Array.isArray(dados.compras) ? dados.compras : [];
       _investimentos = Array.isArray(dados.investimentos) ? dados.investimentos : [];
       _contasFixas = Array.isArray(dados.contasFixas) ? dados.contasFixas : [];
+      _receitas = Array.isArray(dados.receitas) ? dados.receitas : [];
       salvarLancamentosLS();
       salvarConfigLS();
       salvarCartoesLS();
       salvarComprasLS();
       salvarInvestimentosLS();
       salvarContasFixasLS();
+      salvarReceitasLS();
       renderDashboard();
       renderAllTx();
       renderCartoesPage();
       renderInvestimentosPage();
       renderContasFixasPage();
+      renderReceitasPage();
       loadConfigUI();
       toast('✅ Backup importado com sucesso!');
     } catch(err) {
