@@ -1019,7 +1019,10 @@
     <div class="add-plan-row">
       <input type="text" id="novo-cliente-obs" placeholder="Observação (opcional)">
     </div>
-    <button class="btn-save" onclick="criarCodigoCliente()" id="btn-criar-codigo">Criar código</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-save" style="flex:1;" onclick="criarCodigoCliente()" id="btn-criar-codigo">Criar código</button>
+      <button class="btn-save" style="flex:1;background:var(--accent);" onclick="criarChaveTeste()" id="btn-criar-teste">🕒 Chave teste (24h)</button>
+    </div>
     <div id="codigos-msg" style="margin-top:10px;text-align:center;font-size:0.8rem;min-height:16px;"></div>
   </div>
 
@@ -1205,36 +1208,75 @@ async function criarCodigoCliente() {
   const nome = document.getElementById('novo-cliente-nome').value.trim();
   const codigoField = document.getElementById('novo-cliente-codigo');
   const obs = document.getElementById('novo-cliente-obs').value.trim();
-  const msg = document.getElementById('codigos-msg');
-  const btn = document.getElementById('btn-criar-codigo');
 
-  if(!nome) { msg.style.color = '#ff6b6b'; msg.textContent = 'Informe o nome do cliente.'; return; }
+  if(!nome) {
+    const msg = document.getElementById('codigos-msg');
+    msg.style.color = '#ff6b6b'; msg.textContent = 'Informe o nome do cliente.';
+    return;
+  }
   if(!codigoField.value.trim()) gerarCodigoAutomatico();
   const codigo = codigoField.value.trim().toUpperCase();
 
+  await executarCriacaoCodigo({
+    codigo, nome, obs: obs || null, expiraEm: null,
+    btnId: 'btn-criar-codigo', btnLabelOcupado: 'Criando...', btnLabelNormal: 'Criar código',
+    limparCampos: true
+  });
+}
+
+async function criarChaveTeste() {
+  const nomeInput = document.getElementById('novo-cliente-nome');
+  const nome = (nomeInput.value || '').trim() || 'Chave teste';
+  const obs = document.getElementById('novo-cliente-obs').value.trim();
+  const slug = nome
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 10) || 'TESTE';
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const codigo = 'TESTE-' + slug + '-' + rand;
+  const expiraEm = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  await executarCriacaoCodigo({
+    codigo, nome, obs: obs || 'Chave de teste (24h)', expiraEm,
+    btnId: 'btn-criar-teste', btnLabelOcupado: 'Gerando...', btnLabelNormal: '🕒 Chave teste (24h)',
+    limparCampos: true
+  });
+}
+
+async function executarCriacaoCodigo({codigo, nome, obs, expiraEm, btnId, btnLabelOcupado, btnLabelNormal, limparCampos}) {
+  const msg = document.getElementById('codigos-msg');
+  const btn = document.getElementById(btnId);
   btn.disabled = true;
-  btn.textContent = 'Criando...';
+  btn.textContent = btnLabelOcupado;
   msg.textContent = '';
   try {
     await chamarRpcAdmin('admin_criar_codigo', {
       p_master: getCodigoMaster(),
       p_codigo: codigo,
       p_cliente_nome: nome,
-      p_observacao: obs || null
+      p_observacao: obs,
+      p_expira_em: expiraEm
     });
     msg.style.color = '#00d4aa';
-    msg.textContent = 'Código criado: ' + codigo;
-    document.getElementById('novo-cliente-nome').value = '';
-    document.getElementById('novo-cliente-codigo').value = '';
-    document.getElementById('novo-cliente-obs').value = '';
+    msg.textContent = 'Código criado: ' + codigo + (expiraEm ? ' (expira em 24h)' : '');
+    if(limparCampos) {
+      document.getElementById('novo-cliente-nome').value = '';
+      document.getElementById('novo-cliente-codigo').value = '';
+      document.getElementById('novo-cliente-obs').value = '';
+    }
     carregarCodigos();
   } catch(e) {
     msg.style.color = '#ff6b6b';
     msg.textContent = 'Erro: ' + e.message;
   }
   btn.disabled = false;
-  btn.textContent = 'Criar código';
+  btn.textContent = btnLabelNormal;
 }
+
+let ultimosCodigos = [];
+let codigoEmEdicao = null;
 
 async function carregarCodigos() {
   const lista = document.getElementById('codigos-list');
@@ -1242,21 +1284,39 @@ async function carregarCodigos() {
   lista.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;">Carregando...</div>';
   try {
     const codigos = await chamarRpcAdmin('admin_listar_codigos', { p_master: getCodigoMaster() });
-    if(!codigos || codigos.length === 0) {
-      lista.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;">Nenhum código cadastrado ainda.</div>';
-      return;
-    }
-    lista.innerHTML = codigos.map(renderCodigoCard).join('');
+    ultimosCodigos = codigos || [];
+    codigoEmEdicao = null;
+    renderizarListaCodigos();
   } catch(e) {
     lista.innerHTML = '<div style="color:#ff6b6b;font-size:0.8rem;">Erro ao carregar: ' + e.message + '</div>';
   }
 }
 
+function renderizarListaCodigos() {
+  const lista = document.getElementById('codigos-list');
+  if(!lista) return;
+  if(!ultimosCodigos || ultimosCodigos.length === 0) {
+    lista.innerHTML = '<div style="color:var(--text2);font-size:0.8rem;">Nenhum código cadastrado ainda.</div>';
+    return;
+  }
+  lista.innerHTML = ultimosCodigos.map(c =>
+    c.codigo === codigoEmEdicao ? renderCodigoCardEdicao(c) : renderCodigoCard(c)
+  ).join('');
+}
+
+function statusExpiracao(c) {
+  if(!c.expira_em) return null;
+  const expirado = new Date(c.expira_em).getTime() < Date.now();
+  const dataFmt = new Date(c.expira_em).toLocaleString('pt-BR');
+  return { expirado, dataFmt };
+}
+
 function renderCodigoCard(c) {
   const ativo = c.ativo === true;
   const vinculado = !!c.dispositivo_id;
-  const statusCor = ativo ? '#00d4aa' : '#ff6b6b';
-  const statusTxt = ativo ? 'Ativo' : 'Revogado';
+  const exp = statusExpiracao(c);
+  const statusCor = !ativo ? '#ff6b6b' : (exp && exp.expirado ? '#ffb020' : '#00d4aa');
+  const statusTxt = !ativo ? 'Revogado' : (exp && exp.expirado ? 'Expirado' : 'Ativo');
   return `
   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -1267,13 +1327,85 @@ function renderCodigoCard(c) {
     <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;">
       ${vinculado ? '📱 Vinculado a um aparelho' : '⭕ Ainda não ativado em nenhum aparelho'}
       ${c.observacao ? '<br>📝 ' + escapeHtml(c.observacao) : ''}
+      ${exp ? '<br>⏳ ' + (exp.expirado ? 'Expirou em ' : 'Expira em ') + exp.dataFmt : ''}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button onclick="copiarCodigo('${escapeAttr(c.codigo)}')" style="flex:1;min-width:80px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.72rem;cursor:pointer;">📋 Copiar</button>
+      <button onclick="toggleEditarCodigo('${escapeAttr(c.codigo)}')" style="flex:1;min-width:80px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--accent2);font-size:0.72rem;cursor:pointer;">✏️ Editar</button>
       <button onclick="alternarStatusCodigo('${escapeAttr(c.codigo)}', ${!ativo})" style="flex:1;min-width:80px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:${ativo ? '#ff6b6b' : '#00d4aa'};font-size:0.72rem;cursor:pointer;">${ativo ? '🚫 Revogar' : '✅ Reativar'}</button>
       ${vinculado ? `<button onclick="resetarDispositivoCodigo('${escapeAttr(c.codigo)}')" style="flex:1;min-width:80px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:0.72rem;cursor:pointer;">🔓 Liberar aparelho</button>` : ''}
     </div>
   </div>`;
+}
+
+function toggleEditarCodigo(codigo) {
+  codigoEmEdicao = (codigoEmEdicao === codigo) ? null : codigo;
+  renderizarListaCodigos();
+}
+
+function renderCodigoCardEdicao(c) {
+  const expiraLocal = c.expira_em ? toDatetimeLocalValue(c.expira_em) : '';
+  const idPrefix = 'edit-' + btoa(unescape(encodeURIComponent(c.codigo))).replace(/[^a-zA-Z0-9]/g, '');
+  return `
+  <div style="background:var(--surface2);border:1px solid var(--accent2);border-radius:12px;padding:12px 14px;">
+    <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;color:var(--accent2);">✏️ Editando cliente</div>
+    <div class="add-plan-row">
+      <input type="text" id="${idPrefix}-nome" placeholder="Nome do cliente" value="${escapeAttr(c.cliente_nome || '')}">
+    </div>
+    <div class="add-plan-row">
+      <input type="text" id="${idPrefix}-codigo" placeholder="Código" autocapitalize="off" style="text-transform:uppercase;" value="${escapeAttr(c.codigo)}">
+    </div>
+    <div class="add-plan-row">
+      <input type="text" id="${idPrefix}-obs" placeholder="Observação (opcional)" value="${escapeAttr(c.observacao || '')}">
+    </div>
+    <div class="add-plan-row">
+      <input type="datetime-local" id="${idPrefix}-expira" value="${expiraLocal}" style="flex:1;">
+      <button class="btn-gray" style="flex:0 0 auto;width:auto;padding:10px 12px;" onclick="document.getElementById('${idPrefix}-expira').value=''">🗑️ Sem validade</button>
+    </div>
+    <div id="${idPrefix}-msg" style="font-size:0.75rem;min-height:14px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-save" style="flex:1;" onclick="salvarEdicaoCodigo('${escapeAttr(c.codigo)}', '${idPrefix}')">💾 Salvar</button>
+      <button class="btn-gray" style="flex:1;" onclick="toggleEditarCodigo('${escapeAttr(c.codigo)}')">Cancelar</button>
+    </div>
+  </div>`;
+}
+
+function toDatetimeLocalValue(isoStr) {
+  const d = new Date(isoStr);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+async function salvarEdicaoCodigo(codigoAntigo, idPrefix) {
+  const novoNome = document.getElementById(idPrefix + '-nome').value.trim();
+  const novoCodigo = document.getElementById(idPrefix + '-codigo').value.trim().toUpperCase();
+  const novaObs = document.getElementById(idPrefix + '-obs').value.trim();
+  const expiraInput = document.getElementById(idPrefix + '-expira').value;
+  const msg = document.getElementById(idPrefix + '-msg');
+
+  if(!novoNome) { msg.style.color = '#ff6b6b'; msg.textContent = 'Informe o nome do cliente.'; return; }
+  if(!novoCodigo) { msg.style.color = '#ff6b6b'; msg.textContent = 'Informe o código.'; return; }
+
+  const novaExpiraEm = expiraInput ? new Date(expiraInput).toISOString() : null;
+
+  msg.style.color = 'var(--text2)';
+  msg.textContent = 'Salvando...';
+  try {
+    await chamarRpcAdmin('admin_editar_codigo', {
+      p_master: getCodigoMaster(),
+      p_codigo_atual: codigoAntigo,
+      p_novo_codigo: novoCodigo,
+      p_cliente_nome: novoNome,
+      p_observacao: novaObs || null,
+      p_expira_em: novaExpiraEm
+    });
+    toast('Cliente atualizado!');
+    codigoEmEdicao = null;
+    carregarCodigos();
+  } catch(e) {
+    msg.style.color = '#ff6b6b';
+    msg.textContent = 'Erro: ' + e.message;
+  }
 }
 
 function escapeHtml(s) {
