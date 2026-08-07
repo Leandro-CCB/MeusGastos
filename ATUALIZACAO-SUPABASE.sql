@@ -16,6 +16,8 @@ alter table public.licencas
 -- ============================================================
 -- 3) validar_licenca — agora também bloqueia códigos expirados
 -- ============================================================
+drop function if exists public.validar_licenca(text, text);
+
 create or replace function public.validar_licenca(p_codigo text, p_dispositivo text)
 returns boolean
 language plpgsql
@@ -62,6 +64,8 @@ grant execute on function public.validar_licenca(text, text) to anon;
 -- ============================================================
 -- 4) checar_master — diz se um código é master (mostra a aba "Códigos" no app)
 -- ============================================================
+drop function if exists public.checar_master(text);
+
 create or replace function public.checar_master(p_codigo text)
 returns boolean
 language plpgsql
@@ -89,6 +93,8 @@ grant execute on function public.checar_master(text) to anon;
 -- ============================================================
 -- 5) Função auxiliar interna: garante que quem chama é master ativo
 -- ============================================================
+drop function if exists public._exige_master(text);
+
 create or replace function public._exige_master(p_master text)
 returns void
 language plpgsql
@@ -111,6 +117,9 @@ $$;
 -- ============================================================
 -- 6) admin_criar_codigo — agora aceita p_expira_em (opcional)
 -- ============================================================
+drop function if exists public.admin_criar_codigo(text, text, text, text);
+drop function if exists public.admin_criar_codigo(text, text, text, text, timestamptz);
+
 create or replace function public.admin_criar_codigo(
   p_master text,
   p_codigo text,
@@ -136,6 +145,8 @@ grant execute on function public.admin_criar_codigo(text, text, text, text, time
 -- ============================================================
 -- 7) admin_editar_codigo — NOVO: edita nome, código, observação e expiração
 -- ============================================================
+drop function if exists public.admin_editar_codigo(text, text, text, text, text, timestamptz);
+
 create or replace function public.admin_editar_codigo(
   p_master text,
   p_codigo_atual text,
@@ -174,7 +185,11 @@ grant execute on function public.admin_editar_codigo(text, text, text, text, tex
 
 -- ============================================================
 -- 8) admin_listar_codigos — agora também devolve expira_em
+--    (precisa dropar antes: o Postgres não deixa mudar o tipo de
+--    retorno de uma função existente com "create or replace")
 -- ============================================================
+drop function if exists public.admin_listar_codigos(text);
+
 create or replace function public.admin_listar_codigos(p_master text)
 returns table (
   codigo text,
@@ -206,6 +221,8 @@ grant execute on function public.admin_listar_codigos(text) to anon;
 -- ============================================================
 -- 9) admin_definir_status — ativar/revogar
 -- ============================================================
+drop function if exists public.admin_definir_status(text, text, boolean);
+
 create or replace function public.admin_definir_status(p_master text, p_codigo text, p_ativo boolean)
 returns void
 language plpgsql
@@ -224,6 +241,8 @@ grant execute on function public.admin_definir_status(text, text, boolean) to an
 -- ============================================================
 -- 10) admin_resetar_dispositivo — libera o código pra ativar em outro aparelho
 -- ============================================================
+drop function if exists public.admin_resetar_dispositivo(text, text);
+
 create or replace function public.admin_resetar_dispositivo(p_master text, p_codigo text)
 returns void
 language plpgsql
