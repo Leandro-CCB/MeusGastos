@@ -4,6 +4,7 @@ import * as React from 'react';
 import {
   BadgeCheck,
   Ban,
+  BellRing,
   CalendarClock,
   Check,
   Copy,
@@ -14,11 +15,14 @@ import {
   RefreshCw,
   Share2,
   Smartphone,
+  Trash2,
   Unlock,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,9 +37,12 @@ import {
 import { useLicenca } from './license-gate';
 import { SectionTitle } from './shared';
 import {
+  adminCancelarCobranca,
   adminCriarCodigo,
   adminDefinirStatus,
+  adminDeletarCodigo,
   adminEditarCodigo,
+  adminEnviarCobranca,
   adminListarCodigos,
   adminResetarDispositivo,
   gerarChaveTeste,
@@ -67,6 +74,11 @@ export function PageCodigos() {
   const [criando, setCriando] = React.useState(false);
   const [editando, setEditando] = React.useState<string | null>(null);
 
+  // Modal de cobrança in-app
+  const [cobrancaCliente, setCobrancaCliente] = React.useState<CodigoLicenca | null>(null);
+  const [cobrancaMsg, setCobrancaMsg] = React.useState('');
+  const [enviandoCobranca, setEnviandoCobranca] = React.useState(false);
+
   // form novo código
   const [nome, setNome] = React.useState('');
   const [novoCodigo, setNovoCodigo] = React.useState('');
@@ -96,7 +108,7 @@ export function PageCodigos() {
   }, [carregar]);
 
   const criar = async (chaveTeste = false) => {
-    const nomeFinal = (chaveTeste ? nome : nome).trim() || (chaveTeste ? 'Chave teste' : '');
+    const nomeFinal = (nome).trim() || (chaveTeste ? 'Chave teste' : '');
     if (!chaveTeste && !nomeFinal) {
       toast.error('Informe o nome do cliente!');
       return;
@@ -179,6 +191,49 @@ export function PageCodigos() {
     try {
       await adminResetarDispositivo(codigoMaster, c.codigo);
       toast.success('Aparelho liberado — cliente já pode ativar em outro celular/PC');
+      await carregar();
+    } catch (e) {
+      toast.error('Erro: ' + (e as Error).message);
+    }
+  };
+
+  const excluir = async (c: CodigoLicenca) => {
+    try {
+      await adminDeletarCodigo(codigoMaster, c.codigo);
+      toast.success(`Cliente "${c.cliente_nome || c.codigo}" excluído!`);
+      await carregar();
+    } catch (e) {
+      toast.error('Erro ao excluir: ' + (e as Error).message);
+    }
+  };
+
+  const abrirCobranca = (c: CodigoLicenca) => {
+    setCobrancaCliente(c);
+    setCobrancaMsg('');
+  };
+
+  const enviarCobranca = async () => {
+    if (!cobrancaCliente) return;
+    setEnviandoCobranca(true);
+    try {
+      await adminEnviarCobranca(codigoMaster, cobrancaCliente.codigo, cobrancaMsg.trim() || null);
+      toast.success(
+        `Cobrança enviada para ${cobrancaCliente.cliente_nome || cobrancaCliente.codigo}! O aviso aparecerá no app do cliente.`,
+        { duration: 6000 }
+      );
+      setCobrancaCliente(null);
+      await carregar();
+    } catch (e) {
+      toast.error('Erro: ' + (e as Error).message);
+    } finally {
+      setEnviandoCobranca(false);
+    }
+  };
+
+  const cancelarCobranca = async (c: CodigoLicenca) => {
+    try {
+      await adminCancelarCobranca(codigoMaster, c.codigo);
+      toast.success('Cobrança cancelada — o aviso não aparecerá mais para o cliente.');
       await carregar();
     } catch (e) {
       toast.error('Erro: ' + (e as Error).message);
@@ -300,19 +355,27 @@ export function PageCodigos() {
             const st = statusCodigo(c);
             const vinculado = !!c.dispositivo_id;
             const emEdicao = editando === c.codigo;
+            const temCobranca = c.cobranca_pendente;
             return (
               <div
                 key={c.codigo}
                 className={`rounded-2xl border bg-card p-4 transition-colors ${
-                  emEdicao ? 'border-primary/60' : ''
+                  emEdicao ? 'border-primary/60' : temCobranca ? 'border-amber-500/50' : ''
                 }`}
               >
                 {!emEdicao ? (
                   <>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-sm font-bold">
-                        {c.cliente_nome || '(sem nome)'}
-                      </p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <p className="min-w-0 truncate text-sm font-bold">
+                          {c.cliente_nome || '(sem nome)'}
+                        </p>
+                        {temCobranca && (
+                          <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[0.62rem] font-bold text-amber-600 dark:text-amber-400">
+                            🔔 Cobrança ativa
+                          </span>
+                        )}
+                      </div>
                       <span
                         className={`shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-bold ${
                           st.texto === 'Ativo'
@@ -406,6 +469,59 @@ export function PageCodigos() {
                           <Unlock className="mr-1 size-3" /> Liberar aparelho
                         </Button>
                       )}
+
+                      {/* Botão Cobrança in-app */}
+                      {!temCobranca ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 flex-1 rounded-lg text-xs border-amber-500/40 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+                          onClick={() => abrirCobranca(c)}
+                        >
+                          <BellRing className="mr-1 size-3" /> Cobrar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 flex-1 rounded-lg text-xs border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+                          onClick={() => void cancelarCobranca(c)}
+                        >
+                          <Check className="mr-1 size-3" /> Cancelar cobrança
+                        </Button>
+                      )}
+
+                      {/* Botão Excluir */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 flex-1 rounded-lg text-xs border-destructive/40 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="mr-1 size-3" /> Excluir
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-3xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Excluir {c.cliente_nome || c.codigo}?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              O cliente será removido permanentemente do sistema e perderá acesso ao app. Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="rounded-xl bg-destructive text-white hover:bg-destructive/90"
+                              onClick={() => void excluir(c)}
+                            >
+                              Excluir cliente
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </>
                 ) : (
@@ -470,6 +586,73 @@ export function PageCodigos() {
           })
         )}
       </div>
+
+      {/* ============ MODAL DE COBRANÇA IN-APP ============ */}
+      {cobrancaCliente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-3xl border bg-background p-5 shadow-2xl">
+            <div className="mb-1 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BellRing className="size-5 text-amber-500" />
+                <h2 className="text-base font-bold">Enviar cobrança in-app</h2>
+              </div>
+              <button
+                onClick={() => setCobrancaCliente(null)}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+              Um popup de aviso aparecerá no app de{' '}
+              <strong>{cobrancaCliente.cliente_nome || cobrancaCliente.codigo}</strong>{' '}
+              toda vez que ele abrir o programa, até você cancelar a cobrança.
+            </p>
+
+            {/* Preview do popup que o cliente verá */}
+            <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3">
+              <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                Preview — o que o cliente verá:
+              </p>
+              <p className="text-xs font-bold">⚠️ Pagamento pendente</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {cobrancaMsg.trim() ||
+                  'Seu pagamento está pendente. Por favor, regularize sua situação para continuar usando o MeuGasto Pro. Em caso de não pagamento, sua licença será revogada.'}
+              </p>
+            </div>
+
+            <Textarea
+              placeholder="Mensagem personalizada (opcional — deixe em branco para usar a padrão)"
+              value={cobrancaMsg}
+              onChange={(e) => setCobrancaMsg(e.target.value)}
+              className="mb-3 min-h-[80px] rounded-xl resize-none text-xs"
+            />
+
+            <div className="flex gap-2">
+              <Button
+                className="h-10 flex-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
+                disabled={enviandoCobranca}
+                onClick={() => void enviarCobranca()}
+              >
+                {enviandoCobranca ? (
+                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                ) : (
+                  <BellRing className="mr-1.5 size-4" />
+                )}
+                Enviar cobrança
+              </Button>
+              <Button
+                variant="outline"
+                className="h-10 rounded-xl"
+                onClick={() => setCobrancaCliente(null)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

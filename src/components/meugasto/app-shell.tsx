@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BarChart3,
+  Bell,
   ChevronLeft,
   ChevronRight,
   CreditCard,
@@ -14,7 +14,6 @@ import {
   MoreHorizontal,
   PiggyBank,
   PlusCircle,
-  Receipt,
   Repeat,
   Settings,
   Wallet,
@@ -30,25 +29,28 @@ import { ThemeToggle } from './theme-switcher';
 import { useLicenca } from './license-gate';
 
 // ===================== NAV ITEMS =====================
+// Painel principal: Painel, Lançar, Cartões, Receita, Contas Fixas
 const NAV_MAIN: { id: PageId; icon: React.ElementType }[] = [
   { id: 'dashboard', icon: LayoutDashboard },
-  { id: 'lancamentos', icon: ListOrdered },
   { id: 'lancar', icon: PlusCircle },
   { id: 'cartoes', icon: CreditCard },
-  { id: 'investimentos', icon: PiggyBank },
-];
-
-const NAV_EXTRA: { id: PageId; icon: React.ElementType }[] = [
   { id: 'receitas', icon: Wallet },
   { id: 'fixas', icon: Repeat },
+];
+
+// Extras (ficam no "Mais")
+const NAV_EXTRA: { id: PageId; icon: React.ElementType }[] = [
+  { id: 'lancamentos', icon: ListOrdered },
+  { id: 'investimentos', icon: PiggyBank },
   { id: 'config', icon: Settings },
   { id: 'codigos', icon: KeyRound },
+  { id: 'notificacoes', icon: Bell },
 ];
 
 const ALL_NAV = [...NAV_MAIN, ...NAV_EXTRA];
 
 /** Filtro de navegação: itens exclusivos do master. */
-const SOLO_MASTER: PageId[] = ['codigos'];
+const SOLO_MASTER: PageId[] = ['codigos', 'notificacoes'];
 
 function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -133,7 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   const isMobileExtra = (id: PageId) =>
-    id === 'receitas' || id === 'fixas' || id === 'config';
+    id === 'lancamentos' || id === 'investimentos' || id === 'config' || id === 'codigos' || id === 'notificacoes';
 
   return (
     <TooltipProvider delayDuration={200}>

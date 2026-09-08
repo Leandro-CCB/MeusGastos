@@ -30,6 +30,16 @@ export interface Cartao {
   nome: string;
   limite: number;
   venc: number | null;
+  faturasPagas?: Record<string, boolean>; // chave 'YYYY-MM'
+}
+
+export interface Notificacao {
+  id: string;
+  titulo: string;
+  mensagem: string;
+  criadaEm: string;
+  publicada: boolean;
+  tipo: 'aviso' | 'novidade' | 'agradecimento';
 }
 
 export type InvTipo =
@@ -96,7 +106,8 @@ export type PageId =
   | 'investimentos'
   | 'fixas'
   | 'config'
-  | 'codigos';
+  | 'codigos'
+  | 'notificacoes';
 
 export const PAGE_IDS: PageId[] = [
   'dashboard',
@@ -108,6 +119,7 @@ export const PAGE_IDS: PageId[] = [
   'fixas',
   'config',
   'codigos',
+  'notificacoes',
 ];
 
 export const PAGE_LABELS: Record<PageId, string> = {
@@ -120,4 +132,5 @@ export const PAGE_LABELS: Record<PageId, string> = {
   fixas: 'Contas Fixas',
   config: 'Ajustes',
   codigos: 'Códigos',
+  notificacoes: 'Notificações',
 };

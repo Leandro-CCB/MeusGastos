@@ -30,6 +30,12 @@ export interface CodigoLicenca {
   ativado_em: string | null;
   criado_em: string;
   expira_em: string | null;
+  cobranca_pendente: boolean;
+}
+
+export interface CobrancaStatus {
+  pendente: boolean;
+  msg: string | null;
 }
 
 /** Lê (ou cria) o ID do aparelho — mesmo formato do app original. */
@@ -166,6 +172,50 @@ export function adminResetarDispositivo(
     p_master: masterCodigo,
     p_codigo: codigo,
   });
+}
+
+export function adminDeletarCodigo(
+  masterCodigo: string,
+  codigo: string
+): Promise<null> {
+  return rpc<null>('admin_deletar_codigo', {
+    p_master: masterCodigo,
+    p_codigo: codigo,
+  });
+}
+
+/** Envia cobrança in-app para um cliente (master apenas). */
+export function adminEnviarCobranca(
+  masterCodigo: string,
+  codigo: string,
+  msg?: string | null
+): Promise<null> {
+  return rpc<null>('admin_enviar_cobranca', {
+    p_master: masterCodigo,
+    p_codigo: codigo,
+    p_msg: msg ?? null,
+  });
+}
+
+/** Cancela cobrança in-app de um cliente (master apenas). */
+export function adminCancelarCobranca(
+  masterCodigo: string,
+  codigo: string
+): Promise<null> {
+  return rpc<null>('admin_cancelar_cobranca', {
+    p_master: masterCodigo,
+    p_codigo: codigo,
+  });
+}
+
+/** Cliente verifica se tem cobrança pendente — chamado silenciosamente ao abrir o app. */
+export async function verificarCobrancaPendente(codigo: string): Promise<CobrancaStatus> {
+  try {
+    const result = await rpc<CobrancaStatus>('checar_cobranca', { p_codigo: codigo });
+    return result ?? { pendente: false, msg: null };
+  } catch {
+    return { pendente: false, msg: null };
+  }
 }
 
 /** Gera um código automático a partir do nome: NOME-SLUG-XXXX */

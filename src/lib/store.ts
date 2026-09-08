@@ -10,6 +10,7 @@ import type {
   ContaFixa,
   MGConfig,
   PageId,
+  Notificacao,
 } from './types';
 import { uid, currentMonth, shiftMonth, addMonthsToData, jurosCompostos } from './format';
 
@@ -162,6 +163,7 @@ interface MGState {
   investimentos: Investimento[];
   contasFixas: ContaFixa[];
   config: MGConfig;
+  notificacoes: Notificacao[];
   // UI
   activePage: PageId;
   currentMonth: string;
@@ -180,7 +182,10 @@ interface MGState {
   addReceita: (r: Omit<Receita, 'id'>) => void;
   deleteReceita: (id: string) => void;
   addCartao: (c: Omit<Cartao, 'id'>) => void;
+  updateCartao: (id: string, patch: Partial<Cartao>) => void;
   deleteCartao: (id: string) => void;
+  pagarFaturaCartao: (id: string, mes: string) => void;
+  desfazerFaturaCartao: (id: string, mes: string) => void;
   addInvestimento: (i: Omit<Investimento, 'id'>) => void;
   deleteInvestimento: (id: string) => void;
   addContaFixa: (c: Omit<ContaFixa, 'id' | 'pagamentos'>) => void;
@@ -193,6 +198,11 @@ interface MGState {
   deletePlan: (id: string) => void;
   addCustomCat: (c: Omit<MGConfig['customCats'][0], never>) => void;
   deleteCustomCat: (id: string) => void;
+  // Notificações (master)
+  addNotificacao: (n: Omit<Notificacao, 'id' | 'criadaEm'>) => void;
+  updateNotificacao: (id: string, patch: Partial<Notificacao>) => void;
+  deleteNotificacao: (id: string) => void;
+  publicarNotificacao: (id: string) => void;
   limparMes: (ym: string) => void;
   limparTudo: () => void;
   exportarBackup: () => BackupObj;
@@ -226,6 +236,7 @@ export const useMGStore = create<MGState>()(
       investimentos: [],
       contasFixas: [],
       config: DEFAULT_CONFIG,
+      notificacoes: [],
       activePage: 'dashboard',
       currentMonth: currentMonth(),
       lanFilterCat: '',
@@ -276,13 +287,62 @@ export const useMGStore = create<MGState>()(
         set((s) => ({ receitas: s.receitas.filter((r) => r.id !== id) })),
 
       addCartao: (c) =>
-        set((s) => ({ cartoes: [...s.cartoes, { ...c, id: uid() }] })),
+        set((s) => ({ cartoes: [...s.cartoes, { ...c, id: uid(), faturasPagas: {} }] })),
+
+      updateCartao: (id, patch) =>
+        set((s) => ({
+          cartoes: s.cartoes.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        })),
 
       deleteCartao: (id) =>
         set((s) => ({
           cartoes: s.cartoes.filter((c) => c.id !== id),
           lancamentos: s.lancamentos.map((l) =>
             l.cartaoId === id ? { ...l, cartaoId: null } : l
+          ),
+        })),
+
+      pagarFaturaCartao: (id, mes) =>
+        set((s) => ({
+          cartoes: s.cartoes.map((c) =>
+            c.id === id
+              ? { ...c, faturasPagas: { ...(c.faturasPagas ?? {}), [mes]: true } }
+              : c
+          ),
+        })),
+
+      desfazerFaturaCartao: (id, mes) =>
+        set((s) => ({
+          cartoes: s.cartoes.map((c) => {
+            if (c.id !== id) return c;
+            const fp = { ...(c.faturasPagas ?? {}) };
+            delete fp[mes];
+            return { ...c, faturasPagas: fp };
+          }),
+        })),
+
+      addNotificacao: (n) =>
+        set((s) => ({
+          notificacoes: [
+            { ...n, id: uid(), criadaEm: new Date().toISOString() },
+            ...s.notificacoes,
+          ],
+        })),
+
+      updateNotificacao: (id, patch) =>
+        set((s) => ({
+          notificacoes: s.notificacoes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
+        })),
+
+      deleteNotificacao: (id) =>
+        set((s) => ({
+          notificacoes: s.notificacoes.filter((n) => n.id !== id),
+        })),
+
+      publicarNotificacao: (id) =>
+        set((s) => ({
+          notificacoes: s.notificacoes.map((n) =>
+            n.id === id ? { ...n, publicada: true } : n
           ),
         })),
 
@@ -585,6 +645,7 @@ export const useMGStore = create<MGState>()(
         investimentos: s.investimentos,
         contasFixas: s.contasFixas,
         config: s.config,
+        notificacoes: s.notificacoes,
       }),
     }
   )

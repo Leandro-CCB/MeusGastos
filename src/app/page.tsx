@@ -15,8 +15,11 @@ import { PageInvestimentos } from '@/components/meugasto/page-investimentos';
 import { PageFixas } from '@/components/meugasto/page-fixas';
 import { PageConfig } from '@/components/meugasto/page-config';
 import { PageCodigos } from '@/components/meugasto/page-codigos';
+import { PageNotificacoes } from '@/components/meugasto/page-notificacoes';
 import { LicencaProvider, RequireLicenca, useLicenca } from '@/components/meugasto/license-gate';
 import { EditTxModal } from '@/components/meugasto/edit-tx-modal';
+import { NotificacaoBanner } from '@/components/meugasto/notificacao-banner';
+import { CobrancaBanner } from '@/components/meugasto/cobranca-banner';
 
 function AppSkeleton() {
   return (
@@ -70,9 +73,9 @@ function MeuGastoApp() {
     if (res) notificarMigracao(res);
   }, [importarDadosLegados]);
 
-  // proteção: página de códigos só existe para master
+  // proteção: páginas exclusivas do master só existem para master
   React.useEffect(() => {
-    if (activePage === 'codigos' && !isMaster) {
+    if ((activePage === 'codigos' || activePage === 'notificacoes') && !isMaster) {
       setActivePage('dashboard');
     }
   }, [activePage, isMaster, setActivePage]);
@@ -81,10 +84,15 @@ function MeuGastoApp() {
     return <AppSkeleton />;
   }
 
-  const paginaEfetiva = activePage === 'codigos' && !isMaster ? 'dashboard' : activePage;
+  const paginaEfetiva =
+    (activePage === 'codigos' || activePage === 'notificacoes') && !isMaster
+      ? 'dashboard'
+      : activePage;
 
   return (
     <>
+      <NotificacaoBanner />
+      <CobrancaBanner />
       <AppShell>
         {paginaEfetiva === 'dashboard' && <PageDashboard onEditTx={setEditingTx} />}
         {paginaEfetiva === 'lancar' && <PageLancar />}
@@ -95,6 +103,7 @@ function MeuGastoApp() {
         {paginaEfetiva === 'fixas' && <PageFixas />}
         {paginaEfetiva === 'config' && <PageConfig />}
         {paginaEfetiva === 'codigos' && isMaster && <PageCodigos />}
+        {paginaEfetiva === 'notificacoes' && isMaster && <PageNotificacoes />}
       </AppShell>
       <EditTxModal tx={editingTx} onClose={() => setEditingTx(null)} />
     </>
