@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Download, Plus, Share2, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { Download, LogOut, Plus, Share2, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,9 +38,11 @@ import { EMOJI_OPTIONS, getAllCats, getCatColor } from '@/lib/constants';
 import { fmt, monthLabel } from '@/lib/format';
 import type { BackupObj } from '@/lib/store';
 import { SectionTitle } from './shared';
+import { useLicenca } from './license-gate';
 
 export function PageConfig() {
   const s = useMGStore();
+  const { sair, codigo } = useLicenca();
   const mes = s.currentMonth;
 
   // ---- plan ----
@@ -496,6 +498,21 @@ export function PageConfig() {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+      </div>
+
+      {/* ============ LICENÇA ============ */}
+      <SectionTitle>Licença</SectionTitle>
+      <div className="rounded-2xl border bg-card p-4">
+        <p className="text-xs text-muted-foreground">
+          Código ativo: <span className="font-mono font-bold text-foreground">{codigo}</span>
+        </p>
+        <Button
+          variant="outline"
+          className="mt-3 w-full rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10"
+          onClick={sair}
+        >
+          <LogOut className="mr-2 size-4" /> Sair / Trocar licença
+        </Button>
       </div>
 
       {/* ============ SOBRE ============ */}
