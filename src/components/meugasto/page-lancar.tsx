@@ -22,7 +22,7 @@ export function PageLancar() {
   const [isCartao, setIsCartao] = React.useState(false);
   const [cartaoId, setCartaoId] = React.useState('');
   const [parcelado, setParcelado] = React.useState(false);
-  const [parcelas, setParcelas] = React.useState(2);
+  const [parcelas, setParcelas] = React.useState('2');
   const [saving, setSaving] = React.useState(false);
 
   const reset = () => {
@@ -30,7 +30,7 @@ export function PageLancar() {
     setDesc('');
     setCat('');
     setParcelado(false);
-    setParcelas(2);
+    setParcelas('2');
     setData(todayISO());
   };
 
@@ -45,7 +45,7 @@ export function PageLancar() {
     try {
       const n = addLancamentoParcelado(
         { valor: v, desc: desc.trim(), cat, data, isCartao, cartaoId: isCartao ? cartaoId : null },
-        isCartao && parcelado ? Math.max(2, parcelas) : 1
+        isCartao && parcelado ? Math.max(2, parseInt(parcelas) || 2) : 1
       );
       toast.success(n > 1 ? `Compra lançada em ${n}x!` : 'Lançamento salvo!');
       reset();
@@ -55,7 +55,7 @@ export function PageLancar() {
   };
 
   const valorPreview = parseFloat(valor.replace(',', '.')) || 0;
-  const nParcelas = isCartao && parcelado ? Math.max(2, parcelas || 2) : 1;
+  const nParcelas = isCartao && parcelado ? Math.max(2, parseInt(parcelas) || 2) : 1;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -200,7 +200,7 @@ export function PageLancar() {
                       min={2}
                       max={48}
                       value={parcelas}
-                      onChange={(e) => setParcelas(parseInt(e.target.value) || 2)}
+                      onChange={(e) => setParcelas(e.target.value)}
                       className="mt-1.5 h-12 rounded-xl text-lg font-bold"
                     />
                   </div>
